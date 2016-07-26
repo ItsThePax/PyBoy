@@ -125,7 +125,7 @@ def draw_screen(s):
                                                 s[x_pos][y_pos] = color[actual_color]
 
         
-    #TODO sprites priority < 0
+    #TODO sprites priority 0
                     
 
 
@@ -152,15 +152,18 @@ def do_gpu(screen):
             cpu.mmu.memory[0xff41] &= 0xfc
             cpu.mmu.memory[0xff41] |= 1
             frame = pygame.PixelArray(screen)
+            #t2 = time.time()
+            #t0 = time.time()
             if cpu.mmu.memory[0xff40] & (1 << 7):
                 draw_screen(frame)
             del frame
             pygame.display.update()
+            #t1 = time.time()
+            #print(t2  - t3)
+            #print(t1 - t0)
+            #print('\n')
+            #t3 = time.time()
             cpu.mmu.memory[0xff0f] |= 0x1
-            t0 = time.time()
-            print (1 / (t0 - t1 + 0.0001))
-            print(cpu.mmu.memory[0xffc6])
-            print ('\n')
-            t1 = time.time()
+            
             
     
