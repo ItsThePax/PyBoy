@@ -1,0 +1,56 @@
+level = 0
+
+l = open('log.txt', 'w')
+
+
+def debug_log(l, log, b0, b1, b2, register):
+    if l == 1:
+        log.write(hex(b0))
+        log.write('\n')
+    elif l == 2:
+        log.write(hex(b0))
+        log.write(' ')
+        log.write(hex(b1))
+        log.write('\n')
+    else:
+        log.write(hex(b0))
+        log.write(' ')
+        log.write(hex(b1))
+        log.write(' ')
+        log.write(hex(b2))
+        log.write('\n')
+    log.write('a:')
+    log.write(str(hex(register['a'])))
+    log.write(' ')
+    log.write('b:')
+    log.write(str(hex(register['b'])))
+    log.write(' ')
+    log.write('c:')
+    log.write(str(hex(register['c'])))
+    log.write(' ')
+    log.write('d:')
+    log.write(str(hex(register['d'])))
+    log.write(' ')
+    log.write('e:')
+    log.write(str(hex(register['e'])))
+    log.write(' ')
+    log.write('f:')
+    log.write(str(hex(register['f'])))
+    log.write(' ')
+    log.write('h:')
+    log.write(str(hex(register['h'])))
+    log.write(' ')
+    log.write('l:')
+    log.write(str(hex(register['l'])))
+    log.write(' ')
+    log.write('pc:')
+    log.write(str(hex(register['pc'])))
+    log.write(' ')
+    log.write('sp:')
+    log.write(str(hex(register['sp'])))
+    log.write(' ')
+    log.write('clock:')
+    log.write(str(register['clock']))
+    log.write('\n')
+
+
