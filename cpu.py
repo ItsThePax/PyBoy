@@ -372,23 +372,6 @@ def op_26(register, b1):
     register['clock'] += 8
 
 
-def op_27(register):
-    a = register['a']
-    ah = a >> 4
-    al = a & 0xf
-    c = register['f'] & 0x10
-    n = register['f'] & 0x40
-    h = register['f'] & 0x20
-    if n == 0:
-        if c == 0:
-            if ah < 0xa:
-                
-            
-    else:
-       
-        
-
-
 def op_28(register, b1):
     if register['f'] & 0x80:
         if b1 > 127:

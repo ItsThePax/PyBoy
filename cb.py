@@ -63,7 +63,8 @@ def cb_33(register):
         
 
 def cb_37(register):
-    temp = register['a'] & 0xf
+    temp = register['a'] & 0xf0
+    temp >>= 4
     register['a'] <<= 4
     register['a'] |= temp
     register['a'] &= 0xff
@@ -80,7 +81,6 @@ def cb_3f(register):
     register['a'] >>= 1
     if register['a'] == 0:
         register['f'] |= 0x80
-    
         
 
 def cb_40(register):
