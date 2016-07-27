@@ -372,6 +372,62 @@ def op_26(register, b1):
     register['clock'] += 8
 
 
+def op_27(register):
+    n = register['f'] & 0x40
+    h = register['f'] & 0x20
+    c = register['f'] & 0x10
+    ah = register['a'] >> 4
+    al = register['a'] | 0xf
+    register['f'] &= 0x40
+    if n == 0:
+        if c == 0:
+            if h == 0:
+                if ah < 0x9 and al <= 0x9:
+                    register['a'] += 0
+                elif ah <= 0x8 and al >= 0xa:
+                    register['a'] += 0x6
+                elif ah >= 0xa and al <= 0x9:
+                    register['a'] += 0x60
+                    register['f'] |= 0x10
+                elif ah >= 0x9 and al >= 0xa:
+                    register['a'] += 0x66
+                    register['f'] |= 0x10
+            else:
+                if ah <= 0x9 and al <= 0x3:
+                    register['a'] += 0x6
+                elif ah >= 0xa and al <= 0x4:
+                    register['a'] += 0x66
+                    register['f'] |= 0x10
+        else:
+            if h == 0:
+                if al >= 0x9:
+                    register['a'] += 0x60
+                    register['f'] |= 0x10
+                else:
+                    register['a'] += 0x66
+                    register['f'] |= 0x10
+            else:
+                register['a'] += 0x66
+                register['f'] |= 0x10
+    else:
+        if c == 0:
+            if h == 0:
+                register['a'] += 0
+            else:
+                register['a'] += 0xfa
+        else:
+            if h == 0:
+                register['a'] += 0xa0
+                register['f'] |= 0x10
+            else:
+                register['a'] += 0x9a
+                register['f'] |= 0x10
+    register['a'] &= 0xff
+    if register['a'] == 0:
+        register['f'] |= 0x80
+    register['clock'] += 4
+
+
 def op_28(register, b1):
     if register['f'] & 0x80:
         if b1 > 127:
@@ -906,7 +962,7 @@ def op_80(register):
     if register['a'] > 0xff:
         register['f'] |= 0x10
     register['a'] &= 0xff
-    if ~((h & 0xf) < (register['a'] & 0xf)):
+    if (h & 0xf) + (register['b'] & 0xf) > 0xf:
         register['f'] |= 0x20
     if register['a'] == 0:
         register['f'] |= 0x80
@@ -1018,8 +1074,6 @@ def op_8c(register):
     register['clock'] += 4
     
     
-    
-
 def op_90(register):
     h = register['a']
     register['f'] = 0x40
