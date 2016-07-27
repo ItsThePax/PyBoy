@@ -54,6 +54,7 @@ def read(addr):
             if memory[0xff00] & 0xf0 == 0x20:
                 temp = 0x2f
                 if right:
+                    debug.l.write('RIGHT')
                     temp -= 0x1
                     print('right')
                 if left:

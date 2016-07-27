@@ -8,13 +8,13 @@ import debug
 
 t0, t1 = 0, 0
 screen = pygame.display.set_mode((160, 144))
-start_logging = 0x48c
+start_logging = 0x100
 last_instruction = 0
 run = 1
 new_div = 0
 
 
-filename = 'roms/Tetris (World).gb'
+filename = 'Tetris (World).gb'
 
 
 def do_cpu():
