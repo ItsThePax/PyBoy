@@ -87,6 +87,8 @@ def get_controls():
 
 
 cpu.load(filename)
+if cpu.mmu.customboot == 1:
+    cpu.loadboot('quickboot.bin')
 while 1:
     if cpu.reg['pc'] == start_logging:
         debug.level = 1

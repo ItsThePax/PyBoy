@@ -7,8 +7,13 @@ a, b, up, down, left, right, start, select = 0, 0, 0, 0, 0, 0, 0, 0
 random.seed()
 
 rom_type = 0
-in_bios = 1 
+in_bios = 1
+rom_bank = 1
+ram_bank = 1
+customboot = 1
 
+
+externalbootloader = {}
 bootloader = [
     0x31, 0xfe, 0xff, 0xaf, 0x21, 0xff, 0x9f, 0x32, 0xcb, 0x7c, 0x20, 0xfb, 0x21, 0x26, 0xff, 0x0e,
     0x11, 0x3e, 0x80, 0x32, 0xe2, 0x0c, 0x3e, 0xf3, 0xe2, 0x32, 0x3e, 0x77, 0x77, 0x3e, 0xfc, 0xe0,
@@ -30,6 +35,13 @@ bootloader = [
 
 memory = {}
 cart = {}
+ram = {}
+
+i = 0
+while i <= 0xffff:
+    memory[i] = random.randint(0, 255)
+    i += 1
+
 
 i = 0
 while i <= 0xffff:
@@ -37,17 +49,24 @@ while i <= 0xffff:
     i += 1
 memory[0xff40] = 0    
 memory[0xff43] = 0
+
+i = 0
+for i in range (0x100):
+    externalbootloader[i] = 0
     
 
 def read(addr):
     global a, b, up, down, left, right, start, select
     if 0 <= addr < 0x8000:
-        if 0 <= addr < 256:
+	if 0 <= addr < 256:
             if in_bios == 1:
-                return bootloader[addr]
+                if customboot == 1:
+                    return externalbootloader[addr]
+                else:
+                    return bootloader[addr]
             else:
                 return cart[addr]
-        else:
+	else:
             return cart[addr]
     else:
         if addr == 0xff00:

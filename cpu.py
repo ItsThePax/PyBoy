@@ -17,6 +17,19 @@ def load(file):
         i += 1
     f.close()
     mmu.rom_type = mmu.cart[0x0148]
+    if mmu.cart[0x0147] == 0x13:
+        mmu.mc = 3
+
+def loadboot(file):
+    f = open(file, "rb")
+    i = 0
+    byte = f.read(1)
+    while bool(byte) is not False:
+        byte = int(codecs.encode(byte, 'hex'), 16)   
+        mmu.externalbootloader[i] = byte
+        byte = f.read(1)
+        i += 1
+    f.close()
 
 
 def op_00(register):
@@ -1082,7 +1095,7 @@ def op_90(register):
         register['f'] |= 0x10
     elif register['a'] == 0:
         register['f'] |= 0x80
-    if (h & 0xf) > (register['b'] & 0xf):
+    if (h & 0xf) - (register['b'] & 0xf) < 0:
         register['f'] |= 0x20
     register['clock'] += 4
 
@@ -1097,7 +1110,7 @@ def op_96(register):
         register['f'] |= 0x10
     elif register['a'] == 0:
         register['f'] |= 0x80
-    if (h & 0xf) > (temp & 0xf):
+    if (h & 0xf) - (temp & 0xf) < 0:
         register['f'] |= 0x20
     register['clock'] += 8
 
@@ -1519,7 +1532,7 @@ opcode_lookup = {
     0x09: op_09, 0x0a: op_0a, 0x0b: op_0b, 0x0c: op_0c, 0x0d: op_0d, 0x0e: op_0e,
     0x11: op_11, 0x12: op_12, 0x13: op_13, 0x14: op_14, 0x15: op_15, 0x16: op_16, 0x17: op_17,
     0x18: op_18, 0x19: op_19, 0x1a: op_1a, 0x1b: op_1b, 0x1c: op_13, 0x1d: op_1d, 0x1e: op_1e,
-    0x20: op_20, 0x21: op_21, 0x22: op_22, 0x23: op_23, 0x24: op_24, 0x25: op_25, 0x26: op_26, 
+    0x20: op_20, 0x21: op_21, 0x22: op_22, 0x23: op_23, 0x24: op_24, 0x25: op_25, 0x26: op_26, 0x27: op_27,
     0x28: op_28, 0x2a: op_2a, 0x2b: op_2b, 0x2c: op_2c, 0x2d: op_2d, 0x2e: op_2e, 0x2f: op_2f,
     0x30: op_30, 0x31: op_31, 0x32: op_32, 0x34: op_34, 0x35: op_35, 0x36: op_36, 0x37: op_37,
     0x38: op_38, 0x3a: op_3a, 0x3b: op_3b, 0x3c: op_3c, 0x3d: op_3d, 0x3e: op_3e,
