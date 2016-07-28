@@ -11,7 +11,8 @@ screen = pygame.display.set_mode((160, 144))
 start_logging = 0x100
 last_instruction = 0
 run = 1
-new_div = 0
+div = 0
+timer = 0
 
 
 filename = 'Tetris (World).gb'
@@ -29,24 +30,70 @@ def do_cpu():
         debug.l.write('\n')
     if length == 1:
         cpu.reg['pc'] += 1
-        cpu.opcode_lookup[int(b0)](cpu.reg)
+        clock = cpu.opcode_lookup[int(b0)](cpu.reg)
     elif length == 2:
         b1 = cpu.mmu.read(cpu.reg['pc'] + 1)
         cpu.reg['pc'] += 2
-        cpu.opcode_lookup[int(b0)](cpu.reg, b1)
+        clock = cpu.opcode_lookup[int(b0)](cpu.reg, b1)
     else:
         b1 = cpu.mmu.read(cpu.reg['pc'] + 1)
         b2 = cpu.mmu.read(cpu.reg['pc'] + 2)
         cpu.reg['pc'] += 3
-        cpu.opcode_lookup[int(b0)](cpu.reg, b1, b2)
+        clock = cpu.opcode_lookup[int(b0)](cpu.reg, b1, b2)
     if debug.level > 0:
-        debug.debug_log(length, debug.l, b0, b1, b2, cpu.reg) 
+        debug.debug_log(length, debug.l, b0, b1, b2, cpu.reg)
+    return clock
 
     
 def do_interrupts(run, reg):
     interrupts.interrupts(run, reg)
 
 
+def do_timing(clock):
+    global div, timer
+    cpu.reg['clock'] += clock
+    if cpu.reg['clock'] >= 70224:
+        cpu.reg['clock'] -= 70224
+    div += clock
+    if div >= 256:
+        div -= 256
+        cpu.mmu.memory[0xff04] += 1
+        if cpu.mmu.memory[0xff04] >= 256:
+            cpu.mmu.memory[0xff04] -= 256
+    if cpu.mmu.memory[0xff07] & 0x4:
+        timer += clock
+        if cpu.mmu.memory[0xff07] & 0x3 == 0:
+            if timer >= 1000:
+                cpu.mmu.memory[0xff05] += 1
+                if cpu.mmu.memory[0xff05] >= 256:
+                    cpu.mmumemory[0xff05] -= 256
+                    cpu.mmu.memory[0xff0f] |= 0x4
+    elif cpu.mmu.memory[0xff07] & 0x4:
+        timer += clock
+        if cpu.mmu.memory[0xff07] & 0x3 == 1:
+            if timer >= 16:
+                cpu.mmu.memory[0xff05] += 1
+                if cpu.mmu.memory[0xff05] >= 256:
+                    cpu.mmu.memory[0xff05] -= 256
+                    cpu.mmu.memory[0xff0f] |= 0x4
+    elif cpu.mmu.memory[0xff07] & 0x4:
+        timer += clock
+        if cpu.mmu.memory[0xff07] & 0x3 == 2:
+            if timer >= 64:
+                cpu.mmu.memory[0xff05] += 1
+                if cpu.mmu.memory[0xff05] >= 256:
+                    cpu.mmumemory[0xff05] -= 256
+                    cpu.mmu.memory[0xff0f] |= 0x4
+    elif cpu.mmu.memory[0xff07] & 0x4:
+        timer += clock
+        if cpu.mmu.memory[0xff07] & 0x3 == 3:
+            if timer >= 256:
+                cpu.mmu.memory[0xff05] += 1
+                if cpu.mmu.memory[0xff05] >= 256:
+                    cpu.mmumemory[0xff05] -= 256
+                    cpu.mmu.memory[0xff0f] |= 0x4
+
+        
 def get_controls():    
     for event in pygame.event.get():
         if event.type == 2:
@@ -95,7 +142,7 @@ while 1:
     do_interrupts(run, cpu.reg)
     if run == 1:
         try:
-            do_cpu()
+            clock = do_cpu()
         except KeyError:
             if 0xcb == last_instruction:
                 print("Need to implement the following *CB* command:")
@@ -115,15 +162,9 @@ while 1:
         if cpu.mmu.memory[0xff40] & (1 << 7):
             if debug.level > 0:
                 debug.l.write('At line: {0}\n' .format(cpu.mmu.memory[0xff44]))
-    if run == 0:
-        cpu.reg['clock'] += 4
-    if cpu.reg['clock'] >= 70224:
-        cpu.reg['clock'] -= 70224
-    old_div = cpu.reg['clock'] % 256
-    if old_div <= new_div:
-        cpu.mmu.memory[0xff04] += 1
-        cpu.mmu.memory[0xff04] &= 0xff
-        new_div = old_div
+    else:
+        clock = 4
+    do_timing(clock)
     gpu.do_gpu(screen)
     get_controls()
     
