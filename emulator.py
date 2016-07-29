@@ -15,7 +15,7 @@ div = 0
 timer = 0
 
 
-filename = 'Tetris (World).gb'
+filename = 'Pokemon Blue.gb'
 
 
 def do_cpu():
@@ -66,7 +66,7 @@ def do_timing(clock):
             if timer >= 1000:
                 cpu.mmu.memory[0xff05] += 1
                 if cpu.mmu.memory[0xff05] >= 256:
-                    cpu.mmumemory[0xff05] -= 256
+                    cpu.mmu.memory[0xff05] -= 256
                     cpu.mmu.memory[0xff0f] |= 0x4
     elif cpu.mmu.memory[0xff07] & 0x4:
         timer += clock
@@ -82,7 +82,7 @@ def do_timing(clock):
             if timer >= 64:
                 cpu.mmu.memory[0xff05] += 1
                 if cpu.mmu.memory[0xff05] >= 256:
-                    cpu.mmumemory[0xff05] -= 256
+                    cpu.mmu.memory[0xff05] -= 256
                     cpu.mmu.memory[0xff0f] |= 0x4
     elif cpu.mmu.memory[0xff07] & 0x4:
         timer += clock
@@ -90,7 +90,7 @@ def do_timing(clock):
             if timer >= 256:
                 cpu.mmu.memory[0xff05] += 1
                 if cpu.mmu.memory[0xff05] >= 256:
-                    cpu.mmumemory[0xff05] -= 256
+                    cpu.mmu.memory[0xff05] -= 256
                     cpu.mmu.memory[0xff0f] |= 0x4
 
         

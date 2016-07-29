@@ -1,7 +1,7 @@
 # PyBoy
 Gameboy emulator in python.
 
-A fun project to work on in my free time, still far from finished.  I'm using this to teach myself how to code, hence weird naming schemes.  I didn't learn about camelCase until after I started writing, planning on going back and renaming variables and functions at some point.
+A fun project to work on in my free time, still far from finished.  I'm using this to teach myself how to code, hence weird naming schemes and formatting.
 
 Requires Pygame 1.9.2, runs in 2.7 and 3.5
 

@@ -6,14 +6,17 @@ a, b, up, down, left, right, start, select = 0, 0, 0, 0, 0, 0, 0, 0
 
 random.seed()
 
-rom_type = 0
+cartrage_type = 0
+rom_size = 0
+ram_size = 0
+
 in_bios = 1
-rom_bank = 1
+rom_bank = 0
 ram_bank = 1
-customboot = 1
+customboot = 0
+write_protect = 1
 
 
-externalbootloader = {}
 bootloader = [
     0x31, 0xfe, 0xff, 0xaf, 0x21, 0xff, 0x9f, 0x32, 0xcb, 0x7c, 0x20, 0xfb, 0x21, 0x26, 0xff, 0x0e,
     0x11, 0x3e, 0x80, 0x32, 0xe2, 0x0c, 0x3e, 0xf3, 0xe2, 0x32, 0x3e, 0x77, 0x77, 0x3e, 0xfc, 0xe0,
@@ -33,6 +36,7 @@ bootloader = [
     0xf5, 0x06, 0x19, 0x78, 0x86, 0x23, 0x05, 0x20, 0xfb, 0x86, 0x20, 0xfe, 0x3e, 0x01, 0xe0, 0x50
 ]
 
+externalbootloader = {}
 memory = {}
 cart = {}
 ram = {}
@@ -42,23 +46,72 @@ while i <= 0xffff:
     memory[i] = random.randint(0, 255)
     i += 1
 
-
-i = 0
 while i <= 0xffff:
-    memory[i] = random.randint(0, 255)
+    ram[i] = random.randint(0, 255)
     i += 1
+
 memory[0xff40] = 0    
 memory[0xff43] = 0
 
 i = 0
 for i in range (0x100):
     externalbootloader[i] = 0
-    
+
+
+def get_controls():
+    if memory[0xff00] & 0xf0 == 0x20:
+        temp = 0x2f
+        if right:
+            debug.l.write('RIGHT')
+            temp -= 0x1
+            print('right')
+        if left:
+            temp -= 0x2
+            print('left')
+        if up:
+            temp -= 0x4
+            print('up')
+        if down:
+            temp -= 0x8
+            print('down')
+        return temp
+    elif memory[0xff00] & 0xf0 == 0x10:
+        temp = 0x1f
+        if a:
+            temp -= 0x1
+            print('a')
+        if b:
+            temp -= 0x2
+            print('b')
+        if select:
+            temp -= 0x4
+            print('select')
+        if start:
+            temp -= 0x8
+            print('start')
+        return temp
+    else:
+       return memory[0xff00]
+
 
 def read(addr):
+    if cartrage_type == 0:
+        return read_mc0(addr)
+    elif 0xf <= cartrage_type < 0x14:
+        return read_mc3(addr)
+
+
+def write(addr, value):
+    if cartrage_type == 0:
+        return write_mc0(addr, value)
+    elif 0xf <= cartrage_type < 0x14:
+        return write_mc3(addr, value)
+    
+
+def read_mc0(addr):
     global a, b, up, down, left, right, start, select
     if 0 <= addr < 0x8000:
-	if 0 <= addr < 256:
+        if 0 <= addr < 256:
             if in_bios == 1:
                 if customboot == 1:
                     return externalbootloader[addr]
@@ -66,43 +119,37 @@ def read(addr):
                     return bootloader[addr]
             else:
                 return cart[addr]
-	else:
+        else:
+            return cart[addr]
+    else:
+        if 0xa000 <= addr < 0xc000:
+            return 0xff
+        if addr == 0xff00:
+            return get_controls()
+        else:
+            return memory[addr]
+        
+
+def read_mc3(addr):
+    global a, b, up, down, left, right, start, select, rom_bank
+    if 0 <= addr < 0x8000:
+        if 0 <= addr < 256:
+            if in_bios == 1:
+                if customboot == 1:
+                    return externalbootloader[addr]
+                else:
+                    return bootloader[addr]
+            else:
+                return cart[addr]
+        elif 0x4000 <= addr < 0x8000:
+            if rom_bank == 0:
+                return cart[addr]
+            return cart[(addr - 0x4000) * (0x4000 * rom_bank)]
+        else:
             return cart[addr]
     else:
         if addr == 0xff00:
-            if memory[0xff00] & 0xf0 == 0x20:
-                temp = 0x2f
-                if right:
-                    debug.l.write('RIGHT')
-                    temp -= 0x1
-                    print('right')
-                if left:
-                    temp -= 0x2
-                    print('left')
-                if up:
-                    temp -= 0x4
-                    print('up')
-                if down:
-                    temp -= 0x8
-                    print('down')
-                return temp
-            elif memory[0xff00] & 0xf0 == 0x10:
-                temp = 0x1f
-                if a:
-                    temp -= 0x1
-                    print('a')
-                if b:
-                    temp -= 0x2
-                    print('b')
-                if select:
-                    temp -= 0x4
-                    print('select')
-                if start:
-                    temp -= 0x8
-                    print('start')
-                return temp
-            else:
-                return memory[0xff00]
+            return get_controls()
         else:
             return memory[addr]
 
@@ -113,9 +160,57 @@ def do_dma(addr):
         write(0xfe00 + i, read((addr * 0x100) + i))
         
 
-def write(addr, value):
+def write_mc0(addr, value):
     global in_bios
     if 0x8000 <= addr < 0xa000:
+        memory[addr] = value
+    elif 0xc000 <= addr < 0xde00:
+        memory[addr] = value
+        memory[addr + 0x2000] = value
+    elif 0xde00 <= addr < 0xe000:
+        memory[addr] = value
+    elif 0xe000 <= addr < 0xfe00:
+        memory[addr] = value
+        memory[addr - 0x2000] = value
+    elif 0xfe00 <= addr < 0xfea0:
+        memory[addr] = value
+    elif 0xff00 <= addr < 0x10000:
+        if addr == 0xff00:
+            memory[0xff00] = value | 0xf
+        if addr == 0xff04:
+            memory[0xff04] = 0
+        elif addr == 0xff40:
+            if memory[0xff40] & (1 << 7):
+                if value & (1 << 7):
+                    cpu.reg['clock'] = 0
+            memory[addr] = value
+        elif addr == 0xff44:
+            memory[addr] = 0
+            cpu.reg['clock'] = 0
+        elif addr == 0xff46:
+            do_dma(value)
+        elif addr == 0xff50:
+            in_bios = 0
+        else:
+            memory[addr] = value
+
+
+def write_mc3(addr, value):
+    global in_bios, write_protect, rom_bank, ram_bank
+    if 0 <= addr < 0x2000:
+        if value == 0x0a:
+            write_protect = 0
+        else:
+            write_protect = 1
+    elif 0x2000 <= addr <= 0x4000:
+        if write_protect == 0:
+            rom_bank = value
+    elif 0x4000 <= addr < 0x6000:
+        if write_protect == 0:
+            ram_bank = value
+    elif 0x6000 <= addr < 0x8000:
+        return 0 #TODO implement RTC
+    elif 0x8000 <= addr < 0xa000:
         memory[addr] = value
     elif 0xc000 <= addr < 0xde00:
         memory[addr] = value

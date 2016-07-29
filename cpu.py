@@ -16,9 +16,10 @@ def load(file):
         byte = f.read(1)
         i += 1
     f.close()
-    mmu.rom_type = mmu.cart[0x0148]
-    if mmu.cart[0x0147] == 0x13:
-        mmu.mc = 3
+    mmu.cartrage_type = mmu.cart[0x0147]
+    mmu.rom_size = mmu.cart[0x0148]
+    mmu.ram_size = mmu.cart[0x0149]
+
 
 def loadboot(file):
     f = open(file, "rb")
@@ -1496,7 +1497,7 @@ def op_fe(register, b1):
     if register['a'] - b1 == 0:
         register['f'] |= 0x80
     register['f'] |= 0x40
-    if (register['a'] & 0xf) < (b1 & 0xf):
+    if (register['a'] & 0xf) - (b1 & 0xf) < 0:
         register['f'] |= 0x20
     if register['a'] < b1:
         register['f'] |= 0x10
