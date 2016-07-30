@@ -10,7 +10,6 @@ t0, t1 = 0, 0
 screen = pygame.display.set_mode((160, 144))
 start_logging = 0x100
 last_instruction = 0
-run = 1
 div = 0
 timer = 0
 
@@ -135,21 +134,21 @@ def get_controls():
 
 cpu.load(filename)
 if cpu.mmu.customboot == 1:
-    cpu.loadboot('quickboot.bin')
+    cpu.loadboot('DMG_quickboot.bin')
 while 1:
     if cpu.reg['pc'] == start_logging:
         debug.level = 1
-    do_interrupts(run, cpu.reg)
-    if run == 1:
+    do_interrupts(cpu.run, cpu.reg)
+    if cpu.run == 1:
         try:
             clock = do_cpu()
-        except KeyError:
-            if 0xcb == last_instruction:
+        except KeyError, TypeError:
+            if cpu.mmu.read(last_instruction) == 0xcb:
                 print("Need to implement the following *CB* command:")
-                print(hex(cpu.mmu.read(last_instruction)))
+                print(hex(cpu.mmu.read(last_instruction + 1)))
                 if debug.level > 0:
                     debug.l.write("Need to implement the following *CB* command:")
-                    debug.l.write(str(hex(cpu.mmu.read(last_instruction))))
+                    debug.l.write(str(hex(cpu.mmu.read(last_instruction + 1))))
                     debug.l.write('\n')
             else:
                 print("Need to implement the following command:")
@@ -159,9 +158,10 @@ while 1:
                     debug.l.write(str(hex(cpu.mmu.read(last_instruction))))
                     debug.l.write('\n')
             break
-        if cpu.mmu.memory[0xff40] & (1 << 7):
+        if cpu.mmu.memory[0xff40] & 0x80:
             if debug.level > 0:
-                debug.l.write('At line: {0}\n' .format(cpu.mmu.memory[0xff44]))
+                debug.l.write('At line: {0}\nIn rom bank:{1}\n' .format(cpu.mmu.memory[0xff44], hex(cpu.mmu.rom_bank)))
+                
     else:
         clock = 4
     do_timing(clock)
@@ -171,6 +171,7 @@ while 1:
      
 print("The PC is currently at:")
 print(hex(last_instruction))
+print(cpu.mmu.rom_bank)
 if debug.level > 0:
     debug.l.write("The PC is currently at:")
     debug.l.write(hex(last_instruction))
@@ -185,3 +186,4 @@ if debug.level > 0:
     time.sleep(10)
     g.close()
 debug.l.close()
+

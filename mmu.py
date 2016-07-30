@@ -13,7 +13,7 @@ ram_size = 0
 in_bios = 1
 rom_bank = 0
 ram_bank = 1
-customboot = 0
+customboot = 1
 write_protect = 1
 
 
@@ -144,7 +144,7 @@ def read_mc3(addr):
         elif 0x4000 <= addr < 0x8000:
             if rom_bank == 0:
                 return cart[addr]
-            return cart[(addr - 0x4000) * (0x4000 * rom_bank)]
+            return cart[(addr - 0x4000) + (0x4000 * rom_bank)]
         else:
             return cart[addr]
     else:
@@ -180,7 +180,7 @@ def write_mc0(addr, value):
         if addr == 0xff04:
             memory[0xff04] = 0
         elif addr == 0xff40:
-            if memory[0xff40] & (1 << 7):
+            if memory[0xff40] & ~(1 << 7):
                 if value & (1 << 7):
                     cpu.reg['clock'] = 0
             memory[addr] = value
@@ -203,10 +203,8 @@ def write_mc3(addr, value):
         else:
             write_protect = 1
     elif 0x2000 <= addr <= 0x4000:
-        if write_protect == 0:
             rom_bank = value
     elif 0x4000 <= addr < 0x6000:
-        if write_protect == 0:
             ram_bank = value
     elif 0x6000 <= addr < 0x8000:
         return 0 #TODO implement RTC

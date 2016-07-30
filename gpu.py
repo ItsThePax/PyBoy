@@ -135,35 +135,40 @@ def do_gpu(screen):
     global old_clock, new_clock, fpsClock, t0, t1, t2, t3
     new_clock = cpu.reg['clock']
     cpu.mmu.memory[0xff44] = int(new_clock / 456)
-    if cpu.mmu.memory[0xff44] < 144:
-        if new_clock % 456 < 80:
-            if cpu.mmu.memory[0xff41] & 0x3 != 2:
+    if cpu.mmu.memory[0xff40] & 0x80:
+        if cpu.mmu.memory[0xff44] < 144:
+            if new_clock % 456 < 80:
+                if cpu.mmu.memory[0xff41] & 0x3 != 2:
+                    cpu.mmu.memory[0xff41] &= 0xfc
+                    cpu.mmu.memory[0xff41] |= 2
+            elif 80 <= new_clock % 456 < 252:
+                if cpu.mmu.memory[0xff41] & 0x3 != 3:
+                    cpu.mmu.memory[0xff41] &= 0xfc
+                    cpu.mmu.memory[0xff41] |= 3
+            elif new_clock % 456 >= 252:
+                if cpu.mmu.memory[0xff41] & 0x3 != 0:
+                    cpu.mmu.memory[0xff41] &= 0xfc
+        else :
+            if cpu.mmu.memory[0xff41] & 0x3 != 1:
                 cpu.mmu.memory[0xff41] &= 0xfc
-                cpu.mmu.memory[0xff41] |= 2
-        elif 80 <= new_clock % 456 < 252:
-            if cpu.mmu.memory[0xff41] & 0x3 != 3:
-                cpu.mmu.memory[0xff41] &= 0xfc
-                cpu.mmu.memory[0xff41] |= 3
-        elif new_clock % 456 >= 252:
-            if cpu.mmu.memory[0xff41] & 0x3 != 0:
-                cpu.mmu.memory[0xff41] &= 0xfc
-    else :
-        if cpu.mmu.memory[0xff41] & 0x3 != 1:
-            cpu.mmu.memory[0xff41] &= 0xfc
-            cpu.mmu.memory[0xff41] |= 1
-            frame = pygame.PixelArray(screen)
-            #t2 = time.time()
-            #t0 = time.time()
-            if cpu.mmu.memory[0xff40] & (1 << 7):
-                draw_screen(frame)
-            del frame
-            pygame.display.update()
-            #t1 = time.time()
-            #print(t2  - t3)
-            #print(t1 - t0)
-            #print('\n')
-            #t3 = time.time()
-            cpu.mmu.memory[0xff0f] |= 0x1
+                cpu.mmu.memory[0xff41] |= 1
+                frame = pygame.PixelArray(screen)
+                #t2 = time.time()
+                #t0 = time.time()
+                if cpu.mmu.memory[0xff40] & (1 << 7):
+                    draw_screen(frame)
+                del frame
+                pygame.display.update()
+                #t1 = time.time()
+                #print(t2 - t3)
+                #print(t1 - t0)
+                #print('\n')
+                #t3 = time.time()
+                cpu.mmu.memory[0xff0f] |= 0x1
+                print (cpu.mmu.memory[0xff40])
+    else:
+        cpu.reg['clock'] = 0
+        cpu.mmu.memory[0xff41] = 0x3
             
             
     

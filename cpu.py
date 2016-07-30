@@ -4,7 +4,7 @@ import codecs
 import interrupts
 
 reg = {'a': 0, 'f': 0, 'b': 0, 'c': 0, 'd': 0, 'e': 0, 'h': 0, 'l': 0, 'sp': 0, 'pc': 0, 'clock': 0}
-
+run = 1
 
 def load(file):
     f = open(file, "rb")
@@ -156,15 +156,14 @@ def op_0c(register):
 def op_0d(register):
     h = register['c']
     register['c'] -= 1
-    if register['c'] == 0x0:
+    register['f'] = 0x40
+    if register['c'] == 0:
         register['f'] |= 0x80
-    else:
-        register['f'] &= ~0x80
-    register['f'] |= 0x40
-    if ((h & 0xf) < (register['c'] & 0xf)):
+    elif register['c'] < 0:
+        register['f'] |= 0x10
+        register ['c'] += 0x100
+    if (h & 0xf) - (register['c'] & 0xf) < 0:
         register['f'] |= 0x20
-    else:
-        register['f'] &= ~0x20
     return 4
 
 
@@ -211,17 +210,14 @@ def op_14(register):
 def op_15(register):
     h = register['d']
     register['d'] -= 1
-    if register['d'] == 0x0:
+    register['f'] = 0x40
+    if register['d'] == 0:
         register['f'] |= 0x80
-    else:
-        register['f'] &= ~0x80
-    register['f'] |= 0x40
-    if ((h & 0xf) < (register['d'] & 0xf)):
+    elif register['d'] < 0:
+        register['f'] |= 0x10
+        register ['d'] += 0x100
+    if (h & 0xf) - (register['d'] & 0xf) < 0:
         register['f'] |= 0x20
-    else:
-        register['f'] &= ~0x20
-    if register['d'] < 0:
-        register['d'] += 0x100
     return 4
 
 
@@ -299,15 +295,14 @@ def op_1c(register):
 def op_1d(register):
     h = register['e']
     register['e'] -= 1
-    if register['e'] == 0x0:
+    register['f'] = 0x40
+    if register['e'] == 0:
         register['f'] |= 0x80
-    else:
-        register['f'] &= ~0x80
-    register['f'] |= 0x40
-    if ((h & 0xf) < (register['e'] & 0xf)):
+    elif register['e'] < 0:
+        register['f'] |= 0x10
+        register ['e'] += 0x100
+    if (h & 0xf) - (register['e'] & 0xf) < 0:
         register['f'] |= 0x20
-    else:
-        register['f'] &= ~0x20
     return 4
 
 
@@ -585,6 +580,7 @@ def op_36 (register, b1):
 def op_37(register):
     register['f'] &= 0x80
     register['f'] += 1
+    return 4
 
 
 def op_38(register, b1):
@@ -632,15 +628,14 @@ def op_3c(register):
 def op_3d(register):
     h = register['a']
     register['a'] -= 1
-    if register['a'] == 0x0:
+    register['f'] = 0x40
+    if register['a'] == 0:
         register['f'] |= 0x80
-    else:
-        register['f'] &= ~0x80
-    register['f'] |= 0x40
-    if ((h & 0xf) < (register['a'] & 0xf)):
+    elif register['a'] < 0:
+        register['f'] |= 0x10
+        register ['a'] += 0x100
+    if (h & 0xf) - (register['a'] & 0xf) < 0:
         register['f'] |= 0x20
-    else:
-        register['f'] &= ~0x20
     return 4
 
 
@@ -916,12 +911,24 @@ def op_73(register):
     hl = (register['h'] << 8) | register['e']
     mmu.write(hl, register['d'])
     return 8
+
+
+def op_74(register):
+    hl = (register['h'] << 8) | register['l']
+    mmu.write(hl, register['h'])
+    return 8
     
 
 def op_75(register):
     hl = (register['h'] << 8) | register['l']
     mmu.write(hl, register['l'])
     return 8
+
+
+def op_76 (register):
+    global run
+    run = 0
+    return 4
 
 def op_77(register):
     hl = (register['h'] << 8) | register['l']
@@ -940,7 +947,7 @@ def op_79(register):
 
 
 def op_7a(register):
-    register['a'] = register['c']
+    register['a'] = register['d']
     return 4
 
 
@@ -1049,7 +1056,21 @@ def op_87(register):
     if register['a'] > 0xff:
         register['f'] |= 0x10
     register['a'] &= 0xff
-    if ~((h & 0xf) < (register['a'] & 0xf)):
+    if (h & 0xf) + (register['a'] & 0xf) > 0xf:
+        register['f'] |= 0x20
+    if register['a'] == 0:
+        register['f'] |= 0x80
+    return 4
+
+
+def op_88(register):
+    h = register['a']
+    register['a'] += register['b']
+    register['f'] = 0
+    if register['a'] > 0xff:
+        register['f'] |= 0x10
+    register['a'] &= 0xff
+    if (h & 0xf) + (register['b'] & 0xf) > 0xf:
         register['f'] |= 0x20
     if register['a'] == 0:
         register['f'] |= 0x80
@@ -1112,6 +1133,7 @@ def op_90(register):
     register['a'] -= register['b']
     if register['a'] < 0:
         register['f'] |= 0x10
+        register['a'] += 0x100
     elif register['a'] == 0:
         register['f'] |= 0x80
     if (h & 0xf) - (register['b'] & 0xf) < 0:
@@ -1127,11 +1149,28 @@ def op_96(register):
     register['a'] -= temp
     if register['a'] < 0:
         register['f'] |= 0x10
+        register['a'] += 0x100
     elif register['a'] == 0:
         register['f'] |= 0x80
     if (h & 0xf) - (temp & 0xf) < 0:
         register['f'] |= 0x20
     return 8
+
+
+def op_98(register):
+    h = register['a']
+    register['a'] -= register['b']
+    if register['f'] & 0x10:
+        register['a'] -= 1
+    register['f'] = 0x40
+    if register['a'] < 0:
+        register['f'] |= 0x10
+        register['a'] += 0x100
+    elif register['a'] == 0:
+        register['f'] |= 0x80
+    if (h & 0xf) - (register['b'] & 0xf) < 0:
+        register['f'] |= 0x20
+    return 4
 
 
 def op_a0(register):
@@ -1209,6 +1248,15 @@ def op_b0(register):
 
 def op_b1(register):
     register['a'] |= register['c']
+    if register['a'] == 0:
+        register['f'] = 0x80
+    else:
+        register['f'] = 0x00
+    return 4
+
+
+def op_b3(register):
+    register['a'] |= register['e']
     if register['a'] == 0:
         register['f'] = 0x80
     else:
@@ -1335,12 +1383,33 @@ def op_cb(register, b1):
     return 8
 
 
+def op_cc(register, b1, b2):
+    if register['f'] & 0x80:
+        mmu.write(register['sp'] - 1, register['pc'] >> 8)
+        mmu.write(register['sp'] - 2, register['pc'] & 0xff)
+        register['pc'] = (b2 << 8) + b1
+        register['sp'] -= 2
+        return 24
+    else:
+        return 12
+
+
 def op_cd(register, b1, b2):
     mmu.write(register['sp'] - 1, register['pc'] >> 8)
     mmu.write(register['sp'] - 2, register['pc'] & 0xff)
     register['pc'] = (b2 << 8) + b1
     register['sp'] -= 2
-    return 12
+    return 24
+
+
+def op_d0(register):
+    if register['f'] & 0x10:
+        return 8
+    else:
+        register['pc'] = mmu.read(register['sp'])
+        register['pc'] += (mmu.read(register['sp'] + 1) << 8)
+        register['sp'] += 2
+        return 20
 
 
 def op_d1(register):
@@ -1449,8 +1518,8 @@ def op_f0(register, b1):
 
 
 def op_f1(register):
-    register['a'] = mmu.read(register['sp'])
-    register['f'] = mmu.read(register['sp'] + 1)
+    register['f'] = mmu.read(register['sp'])
+    register['a'] = mmu.read(register['sp'] + 1)
     register['sp'] += 2                         
     return 12
 
@@ -1467,8 +1536,8 @@ def op_f3(register):
 
 
 def op_f5(register):
-    mmu.write(register['sp'] - 1, register['f'])
-    mmu.write(register['sp'] - 2, register['a'])
+    mmu.write(register['sp'] - 1, register['a'])
+    mmu.write(register['sp'] - 2, register['f'])
     register['sp'] -= 2
     return 16
 
@@ -1480,16 +1549,42 @@ def op_f6(register, b1):
     else:
         register['f'] = 0x00
     return 8
+
+
+def op_f8(register, b1):
+    if b1 > 127:
+            temp = ~(255 - b1)
+    hl = register['sp'] + b1
+    register['f'] = 0
+    if hl > 0xffff:
+        register['f'] |= 0x10
+        hl -= 0x10000
+    elif hl < 0:
+        register['f'] += 0x10
+        hl += 0x10000
+    hl &= 0xffff
+    register['h'] = hl >> 8
+    register['l'] = hl & 0xff
+    temp = (register['sp'] &  0xf00) + (b1 & 0xf00)
+    if temp > 0xf | temp < 0:
+        register['f'] |= 0x20
+    return 12
+
+
+def op_f9(register):
+    hl = register['h'] << 8 | register['l']
+    register['sp'] = hl
+    return 8
     
-
-def op_fb(register):
-    interrupts.EI = 1
-    return 4
-
 
 def op_fa(register, b1, b2):
     register['a'] = mmu.read(b2 << 8 | b1)
     return 16
+
+
+def op_fb(register):
+    interrupts.EI = 1
+    return 4
 
 
 def op_fe(register, b1):
@@ -1561,21 +1656,22 @@ opcode_lookup = {
     0x58: op_58, 0x59: op_59, 0x5a: op_5a, 0x5b: op_5b, 0x5c: op_5c, 0x5d: op_5d, 0x5e: op_5e, 0x5f: op_5f, 
     0x60: op_60, 0x61: op_61, 0x62: op_62, 0x63: op_63, 0x64: op_64, 0x65: op_65, 0x66: op_66, 0x67: op_67, 
     0x68: op_68, 0x69: op_69, 0x6a: op_6a, 0x6b: op_6b, 0x6c: op_6c, 0x6d: op_6d, 0x6e: op_6e, 0x6f: op_6f, 
-    0x70: op_70, 0x71: op_71, 0x72: op_72, 0x73: op_73, 0x75: op_75, 0x77: op_77,
+    0x70: op_70, 0x71: op_71, 0x72: op_72, 0x73: op_73, 0x74: op_74, 0x75: op_75, 0x76: op_76, 0x77: op_77,
     0x78: op_78, 0x79: op_79, 0x7a: op_7a, 0x7b: op_7b, 0x7c: op_7c, 0x7d: op_7d, 0x7e: op_7e, 0x7f: op_7f, 
     0x80: op_80, 0x82: op_82, 0x83: op_83, 0x85: op_85, 0x86: op_86, 0x87: op_87,
-    0x89: op_89, 0x8c: op_8c, 0x8e: op_8e,
-    0x90: op_90, 0x96: op_96, 
+    0x88: op_88, 0x89: op_89, 0x8c: op_8c, 0x8e: op_8e,
+    0x90: op_90, 0x96: op_96,
+    0x98: op_98,
     0xa0: op_a0, 0xa1: op_a1, 0xa3: op_a3, 0xa7: op_a7,
     0xa8: op_a8, 0xa9: op_a9, 0xaa: op_aa, 0xaf: op_af,
-    0xb0: op_b0, 0xb1: op_b1, 0xb7: op_b7,
+    0xb0: op_b0, 0xb1: op_b1, 0xb3: op_b3, 0xb7: op_b7,
     0xb8: op_b8, 0xbe: op_be,
     0xc0: op_c0, 0xc1: op_c1, 0xc2: op_c2, 0xc3: op_c3, 0xc5: op_c5, 0xc6: op_c6,
-    0xc8: op_c8, 0xc9: op_c9, 0xca: op_ca, 0xcb: op_cb, 0xcd: op_cd,
-    0xd1: op_d1, 0xd5: op_d5, 0xd6: op_d6,
+    0xc8: op_c8, 0xc9: op_c9, 0xca: op_ca, 0xcb: op_cb, 0xcc: op_cc, 0xcd: op_cd,
+    0xd0: op_d0, 0xd1: op_d1, 0xd5: op_d5, 0xd6: op_d6,
     0xd9: op_d9,
     0xe0: op_e0, 0xe1: op_e1, 0xe2: op_e2, 0xe5: op_e5, 0xe6: op_e6,
     0xe9: op_e9, 0xea: op_ea, 0xee: op_ee, 0xef: op_ef,
     0xf0: op_f0, 0xf1: op_f1, 0xf3: op_f3, 0xf5: op_f5, 0xf6: op_f6,
-    0xfa: op_fa, 0xfb: op_fb, 0xfe: op_fe, 0xff: op_ff
+    0xf8: op_f8, 0xf9: op_f9, 0xfa: op_fa, 0xfb: op_fb, 0xfe: op_fe, 0xff: op_ff
 }

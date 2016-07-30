@@ -1,4 +1,5 @@
 import mmu
+import cpu
 import debug
 IME = 0
 EI = 0
@@ -35,6 +36,7 @@ def interrupts(running, register):
                 if debug.level > 0:
                     debug.l.write('IME enabled, ***vblank interrupt***\n\n')
                 IME = 0
+                cpu.run = 1
                 mmu.write(0xff0f, 0)
                 mmu.write(register['sp'] - 1, (register['pc'] >> 8))
                 mmu.write(register['sp'] - 2, (register['pc'] & 0xff))
@@ -44,15 +46,15 @@ def interrupts(running, register):
                 
             else:
                 if running == 0:
-                    running == 1
+                    cpu.run = 1
 
     if mmu.memory[0xff0f] & 0x2:
         if mmu.memory[0xffff] & 0x2:
             if IME:
                 if debug.level > 0:
-                    print('***LCDC interrupt***')
-                    debug.l.write('IME enabled, ***LCDC interrupt***')
+                    debug.l.write('IME enabled, ***LCDC interrupt***\n\n')
                 IME = 0
+                cpu.run = 1
                 mmu.write(0xff0f, 0)
                 mmu.write(register['sp'] - 1, (register['pc'] >> 8))
                 mmu.write(register['sp'] - 2, (register['pc'] & 0xff))
@@ -62,15 +64,15 @@ def interrupts(running, register):
                 
             else:
                 if running == 0:
-                    running == 1
+                    cpu.run = 1
 
     if mmu.memory[0xff0f] & 0x4:
         if mmu.memory[0xffff] & 0x4:
             if IME:
                 if debug.level > 0:
-                    print('***timer interrupt***')
-                    debug.l.write('IME enabled, ***timer interrupt***')
+                    debug.l.write('IME enabled, ***timer interrupt***\n\n')
                 IME = 0
+                cpu.run = 1
                 mmu.write(0xff0f, 0)
                 mmu.write(register['sp'] - 1, (register['pc'] >> 8))
                 mmu.write(register['sp'] - 2, (register['pc'] & 0xff))
@@ -80,15 +82,15 @@ def interrupts(running, register):
                 
             else:
                 if running == 0:
-                    running == 1
+                    cpu.run = 1
 
     if mmu.memory[0xff0f] & 0x8:
         if mmu.memory[0xffff] & 0x8:
             if IME:
                 if debug.level > 0:
-                    print('***serial IO interrupt***')
-                    debug.l.write('IME enabled, ***serial IO interrupt***')
+                    debug.l.write('IME enabled, ***serial IO interrupt***\n\n')
                 IME = 0
+                cpu.run = 1
                 mmu.write(0xff0f, 0)
                 mmu.write(register['sp'] - 1, (register['pc'] >> 8))
                 mmu.write(register['sp'] - 2, (register['pc'] & 0xff))
@@ -98,15 +100,15 @@ def interrupts(running, register):
                 
             else:
                 if running == 0:
-                    running == 1
+                    cpu.run = 1
 
     if mmu.memory[0xff0f] & 0x16:
         if mmu.memory[0xffff] & 0x16:
             if IME:
                 if debug.level > 0:
-                    print('***input interrupt***')
-                    debug.l.write('IME enabled, ***input interrupt***')
+                    debug.l.write('IME enabled, ***input interrupt***\n\n')
                 IME = 0
+                cpu.run = 1
                 mmu.write(0xff0f, 0)
                 mmu.write(register['sp'] - 1, (register['pc'] >> 8))
                 mmu.write(register['sp'] - 2, (register['pc'] & 0xff))
@@ -116,5 +118,5 @@ def interrupts(running, register):
                 
             else:
                 if running == 0:
-                    running == 1
+                    cpu.run = 1
                     
