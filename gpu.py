@@ -26,7 +26,6 @@ def draw_screen(s):
 
     #BG
     if cpu.mmu.memory[0xff40] & 1:
-        old_tile = 0
         tile_data_loc = 0x8800
         tile_map_loc = 0x9800
         if cpu.mmu.memory[0xff40] & 0x10:
@@ -38,10 +37,16 @@ def draw_screen(s):
             pixel_y = (scrolly + j) % 8
             pixel2_y = pixel_y * 2
             for i in range(160):
+                pixel_x = (scrollx + i) % 8
                 tile_x = int(((scrollx + i) % 256) / 8)
                 tile = (tile_y * 32) + tile_x
-                pixel_x = (scrollx + i) % 8
-                tile_loc = tile_data_loc + (cpu.mmu.memory[tile_map_loc + tile] * 0x10)
+                if tile_data_loc == 0x8800:
+                    temp = cpu.mmu.memory[tile_map_loc + tile]
+                    if temp > 127:
+                        temp -= 0x100
+                    tile_loc = 0x9000 + (temp * 0x10)
+                else:
+                    tile_loc = tile_data_loc + (cpu.mmu.memory[tile_map_loc + tile] * 0x10)
                 byte_h = cpu.mmu.memory[tile_loc + pixel2_y]
                 byte_l = cpu.mmu.memory[tile_loc + pixel2_y + 1]
                 raw_u = (byte_h >> (7 - pixel_x)) & 1
