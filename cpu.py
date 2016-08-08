@@ -447,6 +447,21 @@ def op_28(register, b1):
         return 8
 
 
+def op_29(register):
+    hl = register['h'] << 8 | register['l']
+    temp = hl
+    hl += hl
+    register['f'] &= 0x80
+    if (temp & 0xf00) + (temp & 0xf00) > 0xf00:
+        register['f'] |= 0x20
+    if hl > 0xffff:
+        register['f'] |= 0x10
+    hl &= 0xffff
+    register['h'] = hl >> 8
+    register['l'] = hl & 0xff
+    return 8
+
+
 def op_2a(register):
     hl = (register['h'] << 8) | register['l']
     register['a'] = mmu.read(hl)
@@ -890,14 +905,14 @@ def op_6f(register):
 
 
 def op_70(register):
-    hl = (register['h'] << 8) | register['b']
-    mmu.write(hl, register['d'])
+    hl = (register['h'] << 8) | register['l']
+    mmu.write(hl, register['b'])
     return 8
 
 
 def op_71(register):
-    hl = (register['h'] << 8) | register['c']
-    mmu.write(hl, register['d'])
+    hl = (register['h'] << 8) | register['l']
+    mmu.write(hl, register['c'])
     return 8
 
 
@@ -908,8 +923,8 @@ def op_72(register):
 
 
 def op_73(register):
-    hl = (register['h'] << 8) | register['e']
-    mmu.write(hl, register['d'])
+    hl = (register['h'] << 8) | register['l']
+    mmu.write(hl, register['e'])
     return 8
 
 
@@ -984,6 +999,20 @@ def op_80(register):
         register['f'] |= 0x10
     register['a'] &= 0xff
     if (h & 0xf) + (register['b'] & 0xf) > 0xf:
+        register['f'] |= 0x20
+    if register['a'] == 0:
+        register['f'] |= 0x80
+    return 4
+
+
+def op_81(register):
+    h = register['a']
+    register['f'] = 0
+    register['a'] += register['c']
+    if register['a'] > 0xff:
+        register['f'] |= 0x10
+    register['a'] &= 0xff
+    if (h & 0xf) + (register['c'] & 0xf) > 0xf:
         register['f'] |= 0x20
     if register['a'] == 0:
         register['f'] |= 0x80
@@ -1647,7 +1676,7 @@ opcode_lookup = {
     0x11: op_11, 0x12: op_12, 0x13: op_13, 0x14: op_14, 0x15: op_15, 0x16: op_16, 0x17: op_17,
     0x18: op_18, 0x19: op_19, 0x1a: op_1a, 0x1b: op_1b, 0x1c: op_13, 0x1d: op_1d, 0x1e: op_1e,
     0x20: op_20, 0x21: op_21, 0x22: op_22, 0x23: op_23, 0x24: op_24, 0x25: op_25, 0x26: op_26, 0x27: op_27,
-    0x28: op_28, 0x2a: op_2a, 0x2b: op_2b, 0x2c: op_2c, 0x2d: op_2d, 0x2e: op_2e, 0x2f: op_2f,
+    0x28: op_28, 0x29: op_29, 0x2a: op_2a, 0x2b: op_2b, 0x2c: op_2c, 0x2d: op_2d, 0x2e: op_2e, 0x2f: op_2f,
     0x30: op_30, 0x31: op_31, 0x32: op_32, 0x34: op_34, 0x35: op_35, 0x36: op_36, 0x37: op_37,
     0x38: op_38, 0x3a: op_3a, 0x3b: op_3b, 0x3c: op_3c, 0x3d: op_3d, 0x3e: op_3e,
     0x40: op_40, 0x41: op_41, 0x42: op_42, 0x43: op_43, 0x44: op_44, 0x45: op_45, 0x46: op_46, 0x47: op_47,
@@ -1658,7 +1687,7 @@ opcode_lookup = {
     0x68: op_68, 0x69: op_69, 0x6a: op_6a, 0x6b: op_6b, 0x6c: op_6c, 0x6d: op_6d, 0x6e: op_6e, 0x6f: op_6f, 
     0x70: op_70, 0x71: op_71, 0x72: op_72, 0x73: op_73, 0x74: op_74, 0x75: op_75, 0x76: op_76, 0x77: op_77,
     0x78: op_78, 0x79: op_79, 0x7a: op_7a, 0x7b: op_7b, 0x7c: op_7c, 0x7d: op_7d, 0x7e: op_7e, 0x7f: op_7f, 
-    0x80: op_80, 0x82: op_82, 0x83: op_83, 0x85: op_85, 0x86: op_86, 0x87: op_87,
+    0x80: op_80, 0x81: op_81, 0x82: op_82, 0x83: op_83, 0x85: op_85, 0x86: op_86, 0x87: op_87,
     0x88: op_88, 0x89: op_89, 0x8c: op_8c, 0x8e: op_8e,
     0x90: op_90, 0x96: op_96,
     0x98: op_98,

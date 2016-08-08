@@ -295,6 +295,14 @@ def cb_87(register):
     register['a'] &= 0xfe
 
 
+def cb_8f(register):
+    register['a'] &= 0xfd
+
+
+def cb_97(register):
+    register['a'] &= 0xfb
+
+
 def cb_9e(register):
     hl = register['h'] << 8 | register['e']
     temp = mmu.read(hl)
@@ -405,6 +413,8 @@ cb_lookup = {
     0x70: cb_70, 
     0x77: cb_77, 0x78: cb_78, 0x7c: cb_7c, 0x7e: cb_7e, 0x7f: cb_7f, 
     0x86: cb_86, 0x87: cb_87,
+    0x8f: cb_8f,
+    0x97: cb_97,
     0x9e: cb_9e,
     0xa8: cb_a8, 0xa9: cb_a9, 0xaa: cb_aa, 0xab: cb_ab, 0xac: cb_ac, 0xad: cb_ad, 0xae: cb_ae, 0xaf: cb_af, 
     0xbe: cb_be,
