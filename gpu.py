@@ -9,7 +9,6 @@ old_clock = 0
 new_clock = 0
 line = 0
 color = {0x3: ((0, 0, 0)), 0x2: ((90, 90, 90)), 0x1: ((180, 180, 180)), 0x0: ((240, 240, 240))}
-FPS = 60
 t0 = 0
 t1 = 0
 t2 = 0
@@ -19,24 +18,57 @@ t3 = 0
 def draw_screen(s):
     scrolly = cpu.mmu.memory[0xff42]
     scrollx = cpu.mmu.memory[0xff43]
+    winy = cpu.mmu.memory[0xff4a]
+    winx = cpu.mmu.memory[0xff4b]
     bg_pallet = cpu.mmu.memory[0xff47]
     spallet0 = cpu.mmu.memory[0xff48]
     spallet1 = cpu.mmu.memory[0xff49]                                                                  
-    #TODO window
-
-    #BG
+    #BG and window
     if cpu.mmu.memory[0xff40] & 1:
         tile_data_loc = 0x8800
         tile_map_loc = 0x9800
+        window_map_loc = 0x9800
         if cpu.mmu.memory[0xff40] & 0x10:
             tile_data_loc = 0x8000
         if cpu.mmu.memory[0xff40] & 0x8:
             tile_map_loc = 0x9c00
-        for j in range(144):
+        if cpu.mmu.memory[0xff40] & 0x40:
+            window_map_loc = 0x9c00
+        #window
+        if cpu.mmu.memory[0xff40] & 0x20:
+            for j in range(winy, 144):
+                tile_y = int(((scrolly + j) % 256) / 8)
+                pixel_y = (scrolly + j) % 8
+                pixel2_y = pixel_y * 2
+                for i in range((winx - 7), 160):
+                    pixel_x = (scrollx + i) % 8
+                    tile_x = int(((scrollx + i) % 256) / 8)
+                    tile = (tile_y * 32) + tile_x
+                    if tile_data_loc == 0x8800:
+                        temp = cpu.mmu.memory[window_map_loc + tile]
+                        if temp > 127:
+                            temp -= 0x100
+                        tile_loc = 0x9000 + (temp * 0x10)
+                    else:
+                        tile_loc = tile_data_loc + (cpu.mmu.memory[tile_map_loc + tile] * 0x10)
+                    byte_h = cpu.mmu.memory[tile_loc + pixel2_y]
+                    byte_l = cpu.mmu.memory[tile_loc + pixel2_y + 1]
+                    raw_u = (byte_h >> (7 - pixel_x)) & 1
+                    raw_l = (byte_l >> (7 - pixel_x) & 1) << 1
+                    raw_color = raw_u | raw_l 
+                    actual_color = (bg_pallet >> (raw_color * 2)) & 0x3
+                    s[i][j] = color[actual_color]
+        else:
+            winy = 144
+            winx = 167
+    
+    #bg
+        
+        for j in range(winy):
             tile_y = int(((scrolly + j) % 256) / 8)
             pixel_y = (scrolly + j) % 8
             pixel2_y = pixel_y * 2
-            for i in range(160):
+            for i in range(winx - 7):
                 pixel_x = (scrollx + i) % 8
                 tile_x = int(((scrollx + i) % 256) / 8)
                 tile = (tile_y * 32) + tile_x

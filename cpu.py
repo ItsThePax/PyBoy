@@ -1350,6 +1350,20 @@ def op_b8(register):
     return 8
 
 
+def op_b9(register):
+    register['f'] = 0
+    if register['a'] - register['c'] == 0:
+        register['f'] |= 0x80
+    register['f'] |= 0x40
+    if (register['a'] & 0xf) < (register['c'] & 0xf):
+        register['f'] |= 0x20
+    if register['a'] < register['c']:
+        register['f'] &= ~0x10
+    else:
+        register['f'] |= 0x10
+    return 8
+
+
 def op_be(register):
     register['f'] = 0
     hl = (register['h'] << 8) | register['l']
@@ -1728,7 +1742,7 @@ opcode_lookup = {
     0xa0: op_a0, 0xa1: op_a1, 0xa3: op_a3, 0xa7: op_a7,
     0xa8: op_a8, 0xa9: op_a9, 0xaa: op_aa, 0xaf: op_af,
     0xb0: op_b0, 0xb1: op_b1, 0xb3: op_b3, 0xb7: op_b7,
-    0xb8: op_b8, 0xbe: op_be,
+    0xb8: op_b8, 0xb9: op_b9, 0xbe: op_be,
     0xc0: op_c0, 0xc1: op_c1, 0xc2: op_c2, 0xc3: op_c3, 0xc5: op_c5, 0xc6: op_c6,
     0xc8: op_c8, 0xc9: op_c9, 0xca: op_ca, 0xcb: op_cb, 0xcc: op_cc, 0xcd: op_cd,
     0xd0: op_d0, 0xd1: op_d1, 0xd5: op_d5, 0xd6: op_d6,

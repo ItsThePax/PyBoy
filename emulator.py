@@ -131,7 +131,7 @@ def get_controls():
             elif event.key == 32:
                 cpu.mmu.select = 0
 
-
+cpu.mmu.customboot = 0
 cpu.load(filename)
 if cpu.mmu.customboot == 1:
     cpu.loadboot('DMG_quickboot.bin')
