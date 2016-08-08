@@ -13,7 +13,7 @@ ram_size = 0
 in_bios = 1
 rom_bank = 0
 ram_bank = 1
-customboot = 1
+customboot = 0
 write_protect = 1
 
 

@@ -9,6 +9,7 @@ import debug
 t0, t1 = 0, 0
 screen = pygame.display.set_mode((160, 144))
 start_logging = 0x100
+cpu.mmu.customboot = 1
 last_instruction = 0
 div = 0
 timer = 0
@@ -131,7 +132,7 @@ def get_controls():
             elif event.key == 32:
                 cpu.mmu.select = 0
 
-cpu.mmu.customboot = 0
+
 cpu.load(filename)
 if cpu.mmu.customboot == 1:
     cpu.loadboot('DMG_quickboot.bin')
