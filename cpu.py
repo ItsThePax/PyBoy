@@ -106,13 +106,20 @@ def op_07(register):
     return 4
 
 
+def op_08(register, b1, b2):
+    temp = b2 << 8 | b1
+    mmu.write(temp, register['sp'] & 0xff)
+    mmu.write(temp + 1, register['sp'] >> 8)
+    return 20
+
+
 def op_09(register):
     hl = register['h'] << 8 | register['l']
     bc = (register['b'] << 8) | register['c']
     temp = hl
     hl += bc
     register['f'] &= 0x80
-    if ~((temp & 0xf00) < (hl & 0xf00)):
+    if (temp & 0xfff) + (hl & 0xfff) > 0xfff:
         register['f'] |= 0x20
     if hl > 0xffff:
         register['f'] |= 0x10
@@ -167,9 +174,25 @@ def op_0d(register):
     return 4
 
 
+def op_0f(register):
+    if register['a'] & 1:
+        register['f'] = 0x10
+        register['a'] += 0x100
+    else:
+        register['f'] = 0
+    register['a'] >>= 1
+    return 4
+
+
 def op_0e(register, b1):
     register['c'] = b1
     return 8
+
+
+
+def op_10(register):
+    while True:
+        print('STOP 0')
 
 
 def op_11(register, b1, b2):
@@ -309,6 +332,17 @@ def op_1d(register):
 def op_1e(register, b1):
     register['e'] = b1
     return 8
+
+
+def op_1f(register):
+    if register['f'] & 0x10:
+        register['a'] += 0x100
+    if register['a'] & 1:
+        register['f'] = 0x10
+    else:
+        register['f'] = 0
+    register['a'] >>= 1
+    return 4
 
 
 def op_20(register, b1):
@@ -1672,9 +1706,9 @@ length_lookup = {
 
 opcode_lookup = {
     0x00: op_00, 0x01: op_01, 0x02: op_02, 0x03: op_03, 0x04: op_04, 0x05: op_05, 0x06: op_06, 0x07: op_07,
-    0x09: op_09, 0x0a: op_0a, 0x0b: op_0b, 0x0c: op_0c, 0x0d: op_0d, 0x0e: op_0e,
-    0x11: op_11, 0x12: op_12, 0x13: op_13, 0x14: op_14, 0x15: op_15, 0x16: op_16, 0x17: op_17,
-    0x18: op_18, 0x19: op_19, 0x1a: op_1a, 0x1b: op_1b, 0x1c: op_13, 0x1d: op_1d, 0x1e: op_1e,
+    0x08: op_08, 0x09: op_09, 0x0a: op_0a, 0x0b: op_0b, 0x0c: op_0c, 0x0d: op_0d, 0x0e: op_0e, 0x0f: op_0f,
+    0x10: op_10, 0x11: op_11, 0x12: op_12, 0x13: op_13, 0x14: op_14, 0x15: op_15, 0x16: op_16, 0x17: op_17,
+    0x18: op_18, 0x19: op_19, 0x1a: op_1a, 0x1b: op_1b, 0x1c: op_13, 0x1d: op_1d, 0x1e: op_1e, 0x1f: op_1f,
     0x20: op_20, 0x21: op_21, 0x22: op_22, 0x23: op_23, 0x24: op_24, 0x25: op_25, 0x26: op_26, 0x27: op_27,
     0x28: op_28, 0x29: op_29, 0x2a: op_2a, 0x2b: op_2b, 0x2c: op_2c, 0x2d: op_2d, 0x2e: op_2e, 0x2f: op_2f,
     0x30: op_30, 0x31: op_31, 0x32: op_32, 0x34: op_34, 0x35: op_35, 0x36: op_36, 0x37: op_37,
