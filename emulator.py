@@ -134,6 +134,7 @@ def get_controls():
 
 
 cpu.load(filename)
+gpu.frame = 0
 if cpu.mmu.customboot == 1:
     cpu.loadboot('DMG_quickboot.bin')
 while 1:
