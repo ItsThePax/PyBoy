@@ -1525,6 +1525,20 @@ def op_b9(register):
     return 8
 
 
+def op_bc(register):
+    register['f'] = 0
+    if register['a'] - register['h'] == 0:
+        register['f'] |= 0x80
+    register['f'] |= 0x40
+    if (register['a'] & 0xf) < (register['h'] & 0xf):
+        register['f'] |= 0x20
+    if register['a'] < register['h']:
+        register['f'] &= ~0x10
+    else:
+        register['f'] |= 0x10
+    return 8
+
+
 def op_be(register):
     register['f'] = 0
     hl = (register['h'] << 8) | register['l']
@@ -1640,6 +1654,22 @@ def op_cd(register, b1, b2):
     return 24
 
 
+def op_ce(register, b1):
+    h = register['a']
+    if register['f'] & 0x10:
+        register['a'] += 1
+    register['a'] += b1
+    register['f'] = 0
+    if register['a'] > 0xff:
+        register['f'] |= 0x10
+    register['a'] &= 0xff
+    if (h & 0xf) + (b1 & 0xf) > 0xf:
+        register['f'] |= 0x20
+    if register['a'] == 0:
+        register['f'] |= 0x80
+    return 4
+
+
 def op_d0(register):
     if register['f'] & 0x10:
         return 8
@@ -1718,6 +1748,22 @@ def op_da(register, b1, b2):
         return 16
     else:
         return 12
+
+
+def op_de(register, b1):
+    h = register['a']
+    register['a'] -= b1
+    if register['f'] & 0x10:
+        register['a'] -= 1
+    register['f'] = 0x40
+    if register['a'] < 0:
+        register['f'] |= 0x10
+        register['a'] += 0x100
+    elif register['a'] == 0:
+        register['f'] |= 0x80
+    if (h & 0xf) - (b1 & 0xf) < 0:
+        register['f'] |= 0x20
+    return 4
 
 
 def op_e0(register, b1):
@@ -1937,11 +1983,11 @@ opcode_lookup = {
     0xa0: op_a0, 0xa1: op_a1, 0xa3: op_a3, 0xa6: op_a6, 0xa7: op_a7,
     0xa8: op_a8, 0xa9: op_a9, 0xaa: op_aa, 0xaf: op_af,
     0xb0: op_b0, 0xb1: op_b1, 0xb2: op_b2, 0xb3: op_b3, 0xb4: op_b4, 0xb5: op_b5, 0xb6: op_b6, 0xb7: op_b7,
-    0xb8: op_b8, 0xb9: op_b9, 0xbe: op_be,
+    0xb8: op_b8, 0xb9: op_b9, 0xbc: op_bc, 0xbe: op_be,
     0xc0: op_c0, 0xc1: op_c1, 0xc2: op_c2, 0xc3: op_c3, 0xc5: op_c5, 0xc6: op_c6,
-    0xc8: op_c8, 0xc9: op_c9, 0xca: op_ca, 0xcb: op_cb, 0xcc: op_cc, 0xcd: op_cd,
+    0xc8: op_c8, 0xc9: op_c9, 0xca: op_ca, 0xcb: op_cb, 0xcc: op_cc, 0xcd: op_cd, 0xce: op_ce,
     0xd0: op_d0, 0xd1: op_d1, 0xd2: op_d2, 0xd5: op_d5, 0xd6: op_d6,
-    0xd8: op_d8, 0xd9: op_d9, 0xda: op_da, 
+    0xd8: op_d8, 0xd9: op_d9, 0xda: op_da, 0xde: op_de,
     0xe0: op_e0, 0xe1: op_e1, 0xe2: op_e2, 0xe5: op_e5, 0xe6: op_e6,
     0xe9: op_e9, 0xea: op_ea, 0xee: op_ee, 0xef: op_ef,
     0xf0: op_f0, 0xf1: op_f1, 0xf3: op_f3, 0xf5: op_f5, 0xf6: op_f6,

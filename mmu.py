@@ -37,18 +37,18 @@ bootloader = [
 ]
 
 externalbootloader = {}
-memory = {}
-cart = {}
-ram = {}
+memory = []
+for i in range(0x10000):
+    memory.append(random.randint(0, 0xff))
+cart = []
+for i in range(0x100000):
+    cart.append(0)
+ram = []
+for i in range(0x8000):
+    ram.append(random.randint(0, 0xff))
 
 i = 0
-while i <= 0xffff:
-    memory[i] = random.randint(0, 255)
-    i += 1
 
-while i <= 0xffff:
-    ram[i] = random.randint(0, 255)
-    i += 1
 
 memory[0xff40] = 0    
 memory[0xff43] = 0
@@ -62,33 +62,24 @@ def get_controls():
     if memory[0xff00] & 0xf0 == 0x20:
         temp = 0x2f
         if right:
-            debug.l.write('RIGHT')
             temp -= 0x1
-            print('right')
         if left:
             temp -= 0x2
-            print('left')
         if up:
             temp -= 0x4
-            print('up')
         if down:
             temp -= 0x8
-            print('down')
         return temp
     elif memory[0xff00] & 0xf0 == 0x10:
         temp = 0x1f
         if a:
             temp -= 0x1
-            print('a')
         if b:
             temp -= 0x2
-            print('b')
         if select:
             temp -= 0x4
-            print('select')
         if start:
             temp -= 0x8
-            print('start')
         return temp
     else:
        return memory[0xff00]
