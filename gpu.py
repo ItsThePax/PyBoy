@@ -155,14 +155,19 @@ def draw_screen(s):
                                     for pixel_x in range (8):
                                         x_pos = x + pixel_x + scrollx - 8
                                         if 0 <= x_pos < 160:
-                                            raw_color = ((cpu.mmu.memory[sprite_data + (pixel_y * 2)] >> (7 - pixel_x)) & 1) |\
-                                                        (((cpu.mmu.memory[sprite_data + ((pixel_y * 2) + 1)] >> (7 - pixel_x)) & 1) << 1)
-                                            actual_color = (pallet >> (raw_color * 2)) & 0x3
-                                            if actual_color != 0:
-                                                s[x_pos][y_pos] = color[actual_color]
-
-        
-    #TODO sprites priority 0
+                                            if cpu.mmu.memory[oam_loc + 3] & (1 << 7) and s[x_pos][y_pos] != 0:
+                                                raw_color = ((cpu.mmu.memory[sprite_data + (pixel_y * 2)] >> (7 - pixel_x)) & 1) |\
+                                                            (((cpu.mmu.memory[sprite_data + ((pixel_y * 2) + 1)] >> (7 - pixel_x)) & 1) << 1)
+                                                if raw_color != 0:
+                                                    actual_color = (pallet >> (raw_color * 2)) & 0x3
+                                                    s[x_pos][y_pos] = color[actual_color]
+                                            elif cpu.mmu.memory[oam_loc + 3] & (1 << 7) == 0:
+                                                raw_color = ((cpu.mmu.memory[sprite_data + (pixel_y * 2)] >> (7 - pixel_x)) & 1) |\
+                                                            (((cpu.mmu.memory[sprite_data + ((pixel_y * 2) + 1)] >> (7 - pixel_x)) & 1) << 1)
+                                                if raw_color != 0:
+                                                    actual_color = (pallet >> (raw_color * 2)) & 0x3
+                                                    s[x_pos][y_pos] = color[actual_color]        
+        #TODO sprites priority 0
                     
 
 
