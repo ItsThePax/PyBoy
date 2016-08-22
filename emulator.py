@@ -16,7 +16,6 @@ timer = 0
 
 
 filename = 'Pokemon Blue.gb'
-custom_boot = 'DMG_quickboot.bin'
 
 
 def do_cpu():
@@ -137,7 +136,7 @@ def get_controls():
 cpu.load(filename)
 gpu.frame = 0
 if cpu.mmu.customboot == 1:
-    cpu.loadboot(custom_boot)
+    cpu.loadboot('DMG_quickboot.bin')
 while 1:
     if cpu.reg['pc'] == start_logging:
         debug.level = 1
