@@ -169,7 +169,6 @@ while 1:
         clock = 4
     do_timing(clock)
     gpu.do_gpu(screen)
-    get_controls()
     
      
 print("The PC is currently at:")

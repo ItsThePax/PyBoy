@@ -16,13 +16,12 @@ def load(file):
     while bool(byte) is not False:
         byte = int(codecs.encode(byte, 'hex'), 16)   
         mmu.cart.append(byte)
-        byte = f.read(1)
         i += 1
     f.close()
     mmu.cartrage_type = mmu.cart[0x0147]
     mmu.rom_size = mmu.cart[0x0148]
     mmu.ram_size = mmu.cart[0x0149]
-
+    
 
 def loadboot(file):
     f = open(file, "rb")
@@ -1267,7 +1266,7 @@ def op_8e(register):
         register['f'] |= 0x20
     if register['a'] == 0:
         register['f'] |= 0x80
-    return 4
+    return 8
 
 
 def op_8f(register):

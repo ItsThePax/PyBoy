@@ -1,6 +1,7 @@
 import cpu
 import debug
 import random
+import pygame
 
 a, b, up, down, left, right, start, select = 0, 0, 0, 0, 0, 0, 0, 0
 
@@ -48,6 +49,45 @@ for i in range(0x8000):
 
 memory[0xff40] = 0    
 memory[0xff43] = 0
+
+
+def get_inputs():    
+    for event in pygame.event.get():
+        if event.type == 2:
+            if event.key == 97:
+                cpu.mmu.a = 1
+            elif event.key == 115:
+                cpu.mmu.b = 1
+            elif event.key == 276:
+                cpu.mmu.left = 1
+            elif event.key == 273:
+                cpu.mmu.up = 1
+            elif event.key == 274:
+                cpu.mmu.down = 1
+            elif event.key == 275:
+                cpu.mmu.right = 1
+            elif event.key == 13:
+                cpu.mmu.start = 1
+            elif event.key == 32:
+                cpu.mmu.select = 1
+            cpu.mmu.memory[0xff0f] |= 0x10
+        elif event.type == 3:
+            if event.key == 97:
+                cpu.mmu.a = 0
+            elif event.key == 115:
+                cpu.mmu.b = 0
+            elif event.key == 276:
+                cpu.mmu.left = 0
+            elif event.key == 273:
+                cpu.mmu.up = 0
+            elif event.key == 274:
+                cpu.mmu.down = 0
+            elif event.key == 275:
+                cpu.mmu.right = 0
+            elif event.key == 13:
+                cpu.mmu.start = 0
+            elif event.key == 32:
+                cpu.mmu.select = 0
 
 
 def get_controls():
@@ -112,6 +152,7 @@ def read_mc0(addr):
         if 0xa000 <= addr < 0xc000:
             return 0xff
         if addr == 0xff00:
+            get_inputs()
             return get_controls()
         else:
             return memory[addr]
@@ -136,6 +177,7 @@ def read_mc3(addr):
             return cart[addr]
     else:
         if addr == 0xff00:
+            get_inputs()
             return get_controls()
         else:
             return memory[addr]
