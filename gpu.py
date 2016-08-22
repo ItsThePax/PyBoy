@@ -8,7 +8,7 @@ frame = 0
 old_clock = 0
 new_clock = 0
 line = 0
-color = {0x3: ((0, 0, 0)), 0x2: ((100, 100, 100)), 0x1: ((180, 180, 180)), 0x0: ((240, 240, 240))}
+color = {0x3: ((0, 0, 0)), 0x2: ((80, 80, 80)), 0x1: ((150, 150, 150)), 0x0: ((240, 240, 240))}
 t0 = 0
 t1 = 0
 t2 = 0
@@ -170,14 +170,51 @@ def draw_screen(s):
         #TODO sprites priority 0
                     
 
-
+def get_inputs():    
+    for event in pygame.event.get():
+        if event.type == 2:
+            if event.key == 97:
+                cpu.mmu.a = 1
+            elif event.key == 115:
+                cpu.mmu.b = 1
+            elif event.key == 276:
+                cpu.mmu.left = 1
+            elif event.key == 273:
+                cpu.mmu.up = 1
+            elif event.key == 274:
+                cpu.mmu.down = 1
+            elif event.key == 275:
+                cpu.mmu.right = 1
+            elif event.key == 13:
+                cpu.mmu.start = 1
+            elif event.key == 32:
+                cpu.mmu.select = 1
+            cpu.mmu.memory[0xff0f] |= 0x10
+        elif event.type == 3:
+            if event.key == 97:
+                cpu.mmu.a = 0
+            elif event.key == 115:
+                cpu.mmu.b = 0
+            elif event.key == 276:
+                cpu.mmu.left = 0
+            elif event.key == 273:
+                cpu.mmu.up = 0
+            elif event.key == 274:
+                cpu.mmu.down = 0
+            elif event.key == 275:
+                cpu.mmu.right = 0
+            elif event.key == 13:
+                cpu.mmu.start = 0
+            elif event.key == 32:
+                cpu.mmu.select = 0
 
   
 def do_gpu(screen):
     global old_clock, new_clock, fpsClock, t0, t1, t2, t3, frame
+    get_inputs()
     new_clock = cpu.reg['clock']
-    cpu.mmu.memory[0xff44] = int(new_clock / 456)
     if cpu.mmu.memory[0xff40] & 0x80:
+        cpu.mmu.memory[0xff44] = int(new_clock / 456)
         if cpu.mmu.memory[0xff44] < 144:
             if new_clock % 456 < 80:
                 if cpu.mmu.memory[0xff41] & 0x3 != 2:
