@@ -36,26 +36,18 @@ bootloader = [
     0xf5, 0x06, 0x19, 0x78, 0x86, 0x23, 0x05, 0x20, 0xfb, 0x86, 0x20, 0xfe, 0x3e, 0x01, 0xe0, 0x50
 ]
 
-externalbootloader = {}
+externalbootloader = []
+cart = []
 memory = []
 for i in range(0x10000):
     memory.append(random.randint(0, 0xff))
-cart = []
-for i in range(0x100000):
-    cart.append(0)
 ram = []
 for i in range(0x8000):
     ram.append(random.randint(0, 0xff))
 
-i = 0
-
 
 memory[0xff40] = 0    
 memory[0xff43] = 0
-
-i = 0
-for i in range (0x100):
-    externalbootloader[i] = 0
 
 
 def get_controls():
@@ -86,18 +78,22 @@ def get_controls():
 
 
 def read(addr):
-    if cartrage_type == 0:
-        return read_mc0(addr)
-    elif 0xf <= cartrage_type < 0x14:
-        return read_mc3(addr)
-
+    try:
+        if cartrage_type == 0:
+            return read_mc0(addr)
+        elif 0xf <= cartrage_type < 0x14:
+            return read_mc3(addr)
+    except IndexError:
+        return 0xff
 
 def write(addr, value):
-    if cartrage_type == 0:
-        return write_mc0(addr, value)
-    elif 0xf <= cartrage_type < 0x14:
-        return write_mc3(addr, value)
-    
+    try:
+        if cartrage_type == 0:
+            return write_mc0(addr, value)
+        elif 0xf <= cartrage_type < 0x14:
+            return write_mc3(addr, value)
+    except IndexError:
+        return 0xff
 
 def read_mc0(addr):
     global a, b, up, down, left, right, start, select
