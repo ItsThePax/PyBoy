@@ -1186,6 +1186,38 @@ def op_89(register):
     return 4
 
 
+def op_8a(register):
+    h = register['a']
+    if register['f'] & 0x10:
+        register['a'] += 1
+    register['a'] += register['d']
+    register['f'] = 0
+    if register['a'] > 0xff:
+        register['f'] |= 0x10
+    register['a'] &= 0xff
+    if (h & 0xf) + (register['d'] & 0xf) > 0xf:
+        register['f'] |= 0x20
+    if register['a'] == 0:
+        register['f'] |= 0x80
+    return 4
+
+
+def op_8b(register):
+    h = register['a']
+    if register['f'] & 0x10:
+        register['a'] += 1
+    register['a'] += register['e']
+    register['f'] = 0
+    if register['a'] > 0xff:
+        register['f'] |= 0x10
+    register['a'] &= 0xff
+    if (h & 0xf) + (register['e'] & 0xf) > 0xf:
+        register['f'] |= 0x20
+    if register['a'] == 0:
+        register['f'] |= 0x80
+    return 4
+
+
 def op_8c(register):
     h = register['a']
     if register['f'] & 0x10:
@@ -1196,6 +1228,21 @@ def op_8c(register):
         register['f'] |= 0x10
     register['a'] &= 0xff
     if (h & 0xf) + (register['h'] & 0xf) > 0xf:
+        register['f'] |= 0x20
+    if register['a'] == 0:
+        register['f'] |= 0x80
+    return 4
+
+def op_8c(register):
+    h = register['a']
+    if register['f'] & 0x10:
+        register['a'] += 1
+    register['a'] += register['l']
+    register['f'] = 0
+    if register['a'] > 0xff:
+        register['f'] |= 0x10
+    register['a'] &= 0xff
+    if (h & 0xf) + (register['l'] & 0xf) > 0xf:
         register['f'] |= 0x20
     if register['a'] == 0:
         register['f'] |= 0x80
@@ -1214,6 +1261,22 @@ def op_8e(register):
         register['f'] |= 0x10
     register['a'] &= 0xff
     if (h & 0xf) + (temp & 0xf) > 0xf:
+        register['f'] |= 0x20
+    if register['a'] == 0:
+        register['f'] |= 0x80
+    return 4
+
+
+def op_8c(register):
+    h = register['a']
+    if register['f'] & 0x10:
+        register['a'] += 1
+    register['a'] += register['a']
+    register['f'] = 0
+    if register['a'] > 0xff:
+        register['f'] |= 0x10
+    register['a'] &= 0xff
+    if (h & 0xf) + (register['a'] & 0xf) > 0xf:
         register['f'] |= 0x20
     if register['a'] == 0:
         register['f'] |= 0x80
@@ -1993,7 +2056,7 @@ opcode_lookup = {
     0x70: op_70, 0x71: op_71, 0x72: op_72, 0x73: op_73, 0x74: op_74, 0x75: op_75, 0x76: op_76, 0x77: op_77,
     0x78: op_78, 0x79: op_79, 0x7a: op_7a, 0x7b: op_7b, 0x7c: op_7c, 0x7d: op_7d, 0x7e: op_7e, 0x7f: op_7f, 
     0x80: op_80, 0x81: op_81, 0x82: op_82, 0x83: op_83, 0x85: op_85, 0x86: op_86, 0x87: op_87,
-    0x88: op_88, 0x89: op_89, 0x8c: op_8c, 0x8e: op_8e,
+    0x88: op_88, 0x89: op_89, 0x8a, op_8a, 0x8b: op_8b, 0x8c: op_8c, 0x8d: op_8d, 0x8e: op_8e, 0x8f, op_8f,
     0x90: op_90, 0x91: op_91, 0x92: op_92, 0x93: op_93, 0x94: op_94, 0x95: op_95, 0x96: op_96, 0x97: op_97, 
     0x98: op_98,
     0xa0: op_a0, 0xa1: op_a1, 0xa2: op_a2, 0xa3: op_a3, 0xa6: op_a6, 0xa7: op_a7,

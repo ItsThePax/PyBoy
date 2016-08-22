@@ -8,7 +8,7 @@ import debug
 
 t0, t1 = 0, 0
 screen = pygame.display.set_mode((160, 144))
-start_logging = 0x100
+start_logging = 0x100ffffffffffff
 cpu.mmu.customboot = 1
 last_instruction = 0
 div = 0
