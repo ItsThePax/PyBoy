@@ -1,6 +1,97 @@
 import mmu
 
+def cb_00(register):
+    register['f'] = 0
+    register['b'] <<= 1
+    if register['b'] == 0:
+        register['f'] |= 0x80
+    elif register['b'] > 0xff:
+        register['f'] |= 0x10
+        register['b'] += 1
+        register['b'] &= 0xff
 
+
+def cb_01(register):
+    register['f'] = 0
+    register['c'] <<= 1
+    if register['c'] == 0:
+        register['f'] |= 0x80
+    elif register['c'] > 0xff:
+        register['f'] |= 0x10
+        register['c'] += 1
+        register['c'] &= 0xff
+
+        
+def cb_02(register):
+    register['f'] = 0
+    register['d'] <<= 1
+    if register['d'] == 0:
+        register['f'] |= 0x80
+    elif register['d'] > 0xff:
+        register['f'] |= 0x10
+        register['d'] += 1
+        register['d'] &= 0xff
+
+        
+def cb_03(register):
+    register['f'] = 0
+    register['e'] <<= 1
+    if register['e'] == 0:
+        register['f'] |= 0x80
+    elif register['e'] > 0xff:
+        register['f'] |= 0x10
+        register['e'] += 1
+        register['e'] &= 0xff
+
+        
+def cb_04(register):
+    register['f'] = 0
+    register['h'] <<= 1
+    if register['h'] == 0:
+        register['f'] |= 0x80
+    elif register['h'] > 0xff:
+        register['f'] |= 0x10
+        register['h'] += 1
+        register['h'] &= 0xff
+
+        
+def cb_05(register):
+    register['f'] = 0
+    register['l'] <<= 1
+    if register['l'] == 0:
+        register['f'] |= 0x80
+    elif register['l'] > 0xff:
+        register['f'] |= 0x10
+        register['l'] += 1
+        register['l'] &= 0xff
+
+        
+def cb_06(register):
+    hl = mmu.read(
+    register['f'] = 0
+    register['b'] <<= 1
+    if register['b'] == 0:
+        register['f'] |= 0x80
+    elif register['b'] > 0xff:
+        register['f'] |= 0x10
+        register['b'] += 1
+        register['b'] &= 0xff
+
+        
+def cb_07(register):
+    hl = register['h'] << 8 | register['l']
+    temp = mmu.read(hl)
+    register['f'] = 0
+    register['a'] <<= 1
+    if register['a'] == 0:
+        register['f'] |= 0x80
+    elif register['a'] > 0xff:
+        register['f'] |= 0x10
+        register['a'] += 1
+        register['a'] &= 0xff
+    mmu.write(hl, temp)
+
+    
 def cb_08(register):
     c = register['b'] & 1
     register['b'] >>= 1
@@ -1135,6 +1226,7 @@ def cb_ff(register):
 
 
 cb_lookup = {
+    0x00: cb_00, 0x01: cb_01, 0x02: cb_02, 0x03: cb_03, 0x04: cb_04, 0x05: cb_05, 0x06: cb_06, 0x07: cb_07,
     0x08: cb_08, 0x09: cb_09, 0x0a: cb_0a, 0x0b: cb_0b, 0x0c: cb_0c, 0x0d: cb_0d, 0x0e: cb_0e, 0x0f: cb_0f, 
     0x10: cb_10, 0x11: cb_11, 0x12: cb_12, 0x13: cb_13, 0x14: cb_14, 0x15: cb_15, 0x16: cb_16, 0x17: cb_17,
     0x1a: cb_1a, 0x1b: cb_1b,

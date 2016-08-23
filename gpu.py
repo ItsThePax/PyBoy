@@ -201,7 +201,7 @@ def do_gpu(screen):
                 #t0 = time.time()
                 if cpu.mmu.memory[0xff40] & (1 << 7):
                     draw_screen(sb)
-                del sb
+                    del sb
                 pygame.display.update()
                 #t1 = time.time()
                 try:
