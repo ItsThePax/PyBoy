@@ -1475,11 +1475,133 @@ def cb_bf(register):
     register['a'] &= 0x7f
 
 
-def cb_d6(register):
+def cb_c0(register):
+    register['b'] |= 0x1
+
+
+def cb_c1(register):
+    register['c'] |= 0x1
+
+
+def cb_c2(register):
+    register['d'] |= 0x1
+
+
+def cb_c3(register):
+    register['e'] |= 0x1
+
+
+def cb_c4(register):
+    register['h'] |= 0x1
+
+
+def cb_c5(register):
+    register['l'] |= 0x1
+
+
+def cb_c6(register):
+    hl = register['h'] << 8 | register['l']
+    temp = mmu.read(hl)
+    temp |= 0x1
+    mmu.write(hl, temp)
+
+
+def cb_c7(register):
+    register['a'] |= 0x1
+    
+
+def cb_c8(register):
+    register['b'] |= 0x2
+
+
+def cb_c9(register):
+    register['c'] |= 0x2
+
+
+def cb_ca(register):
+    register['d'] |= 0x2
+
+
+def cb_cb(register):
+    register['e'] |= 0x2
+
+
+def cb_cc(register):
+    register['h'] |= 0x2
+
+
+def cb_cd(register):
+    register['l'] |= 0x2
+
+
+def cb_ce(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp |= 0x2
     mmu.write(hl, temp)
+
+
+def cb_cf(register):
+    register['a'] |= 0x4
+
+
+def cb_d0(register):
+    register['b'] |= 0x4
+
+
+def cb_d1(register):
+    register['c'] |= 0x4
+
+
+def cb_d2(register):
+    register['d'] |= 0x4
+
+
+def cb_d3(register):
+    register['e'] |= 0x4
+
+
+def cb_d4(register):
+    register['h'] |= 0x4
+
+
+def cb_d5(register):
+    register['l'] |= 0x4
+
+
+def cb_d6(register):
+    hl = register['h'] << 8 | register['l']
+    temp = mmu.read(hl)
+    temp |= 0x4
+    mmu.write(hl, temp)
+
+
+def cb_d7(register):
+    register['a'] |= 0x4
+    
+
+def cb_d8(register):
+    register['b'] |= 0x8
+
+
+def cb_d9(register):
+    register['c'] |= 0x8
+
+
+def cb_da(register):
+    register['d'] |= 0x8
+
+
+def cb_db(register):
+    register['e'] |= 0x8
+
+
+def cb_dc(register):
+    register['h'] |= 0x8
+
+
+def cb_dd(register):
+    register['l'] |= 0x8
 
 
 def cb_de(register):
@@ -1489,8 +1611,78 @@ def cb_de(register):
     mmu.write(hl, temp)
 
 
+def cb_df(register):
+    register['a'] |= 0x8
+
+
+def cb_e0(register):
+    register['b'] |= 0x10
+
+
+def cb_e1(register):
+    register['c'] |= 0x10
+
+
+def cb_e2(register):
+    register['d'] |= 0x10
+
+
+def cb_e3(register):
+    register['e'] |= 0x10
+
+
+def cb_e4(register):
+    register['h'] |= 0x10
+
+
+def cb_e5(register):
+    register['l'] |= 0x10
+
+
+def cb_e6(register):
+    hl = register['h'] << 8 | register['l']
+    temp = mmu.read(hl)
+    temp |= 0x10
+    mmu.write(hl, temp)
+
+
+def cb_e7(register):
+    register['a'] |= 0x10
+    
+
+def cb_e8(register):
+    register['b'] |= 0x20
+
+
+def cb_e9(register):
+    register['c'] |= 0x20
+
+
+def cb_ea(register):
+    register['d'] |= 0x20
+
+
+def cb_eb(register):
+    register['e'] |= 0x20
+
+
+def cb_ec(register):
+    register['h'] |= 0x20
+
+
 def cb_ed(register):
     register['l'] |= 0x20
+
+
+def cb_ee(register):
+    hl = register['h'] << 8 | register['l']
+    temp = mmu.read(hl)
+    temp |= 0x20
+    mmu.write(hl, temp)
+
+
+def cb_ef(register):
+    register['a'] |= 0x20
 
 
 def cb_f0(register):
@@ -1580,16 +1772,20 @@ cb_lookup = {
     0x68: cb_68, 0x69: cb_69, 0x6a: cb_6a, 0x6b: cb_6b, 0x6c: cb_6c, 0x6d: cb_6d, 0x6e: cb_6e, 0x6f: cb_6f,
     0x70: cb_70, 0x71: cb_71, 0x72: cb_72, 0x73: cb_73, 0x74: cb_74, 0x75: cb_75, 0x76: cb_76, 0x77: cb_77, 
     0x78: cb_78, 0x79: cb_79, 0x7a: cb_7a, 0x7b: cb_7b, 0x7c: cb_7c, 0x7d: cb_7d, 0x7e: cb_7e, 0x7f: cb_7f, 
-    0x86: cb_86, 0x87: cb_87,
-    0x8f: cb_8f,
+    0x80: cb_80, 0x81: cb_81, 0x82: cb_82, 0x83: cb_83, 0x84: cb_84, 0x85: cb_85, 0x86: cb_86, 0x87: cb_87, 
+    0x88: cb_88, 0x89: cb_89, 0x8a: cb_8a, 0x8b: cb_8b, 0x8c: cb_8c, 0x8d: cb_8d, 0x8e: cb_8e, 0x8f: cb_8f, 
     0x90: cb_90, 0x91: cb_91, 0x92: cb_92, 0x93: cb_93, 0x94: cb_94, 0x95: cb_95, 0x96: cb_96, 0x97: cb_97, 
-    0x9e: cb_9e,
-    0xa6: cb_a6,
+    0x98: cb_98, 0x99: cb_99, 0x9a: cb_9a, 0x9b: cb_9b, 0x9c: cb_9c, 0x9d: cb_9d, 0x9e: cb_9e, 0x9f: cb_9f,
+    0xa0: cb_a0, 0xa1: cb_a1, 0xa2: cb_a2, 0xa3: cb_a3, 0xa4: cb_a4, 0xa5: cb_a5, 0xa6: cb_a6, 0xa7: cb_a7, 
     0xa8: cb_a8, 0xa9: cb_a9, 0xaa: cb_aa, 0xab: cb_ab, 0xac: cb_ac, 0xad: cb_ad, 0xae: cb_ae, 0xaf: cb_af, 
-    0xbe: cb_be,
-    0xd6: cb_d6,
-    0xde: cb_de,
-    0xed: cb_ed,
+    0xb0: cb_b0, 0xb1: cb_b1, 0xb2: cb_b2, 0xb3: cb_b3, 0xb4: cb_b4, 0xb5: cb_b5, 0xb6: cb_b6, 0xb7: cb_b7, 
+    0xb8: cb_b8, 0xb9: cb_b9, 0xba: cb_ba, 0xbb: cb_bb, 0xbc: cb_bc, 0xbd: cb_bd, 0xbe: cb_be, 0xbf: cb_bf, 
+    0xc0: cb_c0, 0xc1: cb_c1, 0xc2: cb_c2, 0xc3: cb_c3, 0xc4: cb_c4, 0xc5: cb_c5, 0xc6: cb_c6, 0xc7: cb_c7, 
+    0xc8: cb_c8, 0xc9: cb_c9, 0xca: cb_ca, 0xcb: cb_cb, 0xcc: cb_cc, 0xcd: cb_cd, 0xce: cb_ce, 0xcf: cb_cf, 
+    0xd0: cb_d0, 0xd1: cb_d1, 0xd2: cb_d2, 0xd3: cb_d3, 0xd4: cb_d4, 0xd5: cb_d5, 0xd6: cb_d6, 0xd7: cb_d7, 
+    0xd8: cb_d8, 0xd9: cb_d9, 0xda: cb_da, 0xdb: cb_db, 0xdc: cb_dc, 0xdd: cb_dd, 0xde: cb_de, 0xdf: cb_df, 
+    0xe0: cb_e0, 0xe1: cb_e1, 0xe2: cb_e2, 0xe3: cb_e3, 0xe4: cb_e4, 0xe5: cb_e5, 0xe6: cb_e6, 0xe7: cb_e7, 
+    0xe8: cb_e8, 0xe9: cb_e9, 0xea: cb_ea, 0xeb: cb_eb, 0xec: cb_ec, 0xed: cb_ed, 0xee: cb_ee, 0xef: cb_ef, 
     0xf0: cb_f0, 0xf1: cb_f1, 0xf2: cb_f2, 0xf3: cb_f3, 0xf4: cb_f4, 0xf5: cb_f5, 0xf6: cb_f6, 0xf7: cb_f7,
     0xf8: cb_f8, 0xf9: cb_f9, 0xfa: cb_fa, 0xfb: cb_fb, 0xfc: cb_fc, 0xfd: cb_fd, 0xfe: cb_fe, 0xff: cb_ff, 
 }
