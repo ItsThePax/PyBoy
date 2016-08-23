@@ -690,49 +690,53 @@ def cb_3f(register):
         
 
 def cb_40(register):
-    if register['b'] & 1:
-        register['f'] &= ~(1 << 7)
-    else:
-        register['f'] |= (1 << 7)
-    register['f'] &= ~(1 << 6)
-    register['f'] |= (1 << 5)
+    register['f'] &= 0x20
+    if register['b'] & 0x1 == 0:
+        register['f'] |= 0x80
+
 
 def cb_41(register):
-    if register['c'] & 1:
-        register['f'] &= ~(1 << 7)
-    else:
-        register['f'] |= (1 << 7)
-    register['f'] &= ~(1 << 6)
-    register['f'] |= (1 << 5)
+    register['f'] &= 0x20
+    if register['c'] & 0x1 == 0:
+        register['f'] |= 0x80
 
 
 def cb_42(register):
-    if register['d'] & 1:
-        register['f'] &= ~(1 << 7)
-    else:
-        register['f'] |= (1 << 7)
-    register['f'] &= ~(1 << 6)
-    register['f'] |= (1 << 5)
+    register['f'] &= 0x20
+    if register['d'] & 0x1 == 0:
+        register['f'] |= 0x80
+
+
+def cb_43(register):
+    register['f'] &= 0x20
+    if register['e'] & 0x1 == 0:
+        register['f'] |= 0x80
+
+
+def cb_44(register):
+    register['f'] &= 0x20
+    if register['h'] & 0x1 == 0:
+        register['f'] |= 0x80
+
+
+def cb_45(register):
+    register['f'] &= 0x20
+    if register['l'] & 0x1 == 0:
+        register['f'] |= 0x80
 
 
 def cb_46(register):
     hl = register['h'] << 8 | register['l']
     value = mmu.read(hl)
-    if value & 1:
-        register['f'] &= ~(1 << 7)
-    else:
-        register['f'] |= (1 << 7)
-    register['f'] &= ~(1 << 6)
-    register['f'] |= (1 << 5)
+    register['f'] &= 0x20
+    if value & 0x1 == 0:
+        register['f'] |= 0x80
 
 
 def cb_47(register):
-    if register['a'] & 1:
-        register['f'] &= ~(1 << 7)
-    else:
-        register['f'] |= (1 << 7)
-    register['f'] &= ~(1 << 6)
-    register['f'] |= (1 << 5)
+    register['f'] &= 0x20
+    if register['b'] & 0x1 == 0:
+        register['f'] |= 0x80
     
 
 def cb_48(register):
@@ -1036,7 +1040,7 @@ def cb_6a(register):
 
 def cb_6b(register):
     register['f'] &= 0x20
-    if ~(register['e'] & 0x20):
+    if register['e'] & 0x20 == 0:
         register['f'] |= 0x80
 
 
@@ -1142,41 +1146,77 @@ def cb_77(register):
     
 
 def cb_78(register):
-    if register['b'] & (1 << 7):
-        register['f'] &= ~(1 << 7)
-    else:
-        register['f'] |= (1 << 7)
-    register['f'] &= ~(1 << 6)
-    register['f'] |= (1 << 5)
+    register['f'] &= 0x20
+    if register['b'] & 0x80 == 0:
+        register['f'] |= 0x80
+
+
+def cb_79(register):
+    register['f'] &= 0x20
+    if register['c'] & 0x80 == 0:
+        register['f'] |= 0x80
+
+
+def cb_7a(register):
+    register['f'] &= 0x20
+    if register['d'] & 0x80 == 0:
+        register['f'] |= 0x80
+
+
+def cb_7b(register):
+    register['f'] &= 0x20
+    if register['e'] & 0x80 == 0:
+        register['f'] |= 0x80
 
 
 def cb_7c(register):
-    if register['h'] & (1 << 7):
-        register['f'] &= ~(1 << 7)
-    else:
-        register['f'] |= (1 << 7)
-    register['f'] &= ~(1 << 6)
-    register['f'] |= (1 << 5)
+    register['f'] &= 0x20
+    if register['h'] & 0x80 == 0:
+        register['f'] |= 0x80
+
+
+def cb_7d(register):
+    register['f'] &= 0x20
+    if register['h'] & 0x80 == 0:
+        register['f'] |= 0x80
 
 
 def cb_7e(register):
-    hl = register['h'] << 8 | register['l']
-    value = mmu.read(hl)
-    if value & (1 << 7):
-        register['f'] &= ~(1 << 7)
-    else:
-        register['f'] |= (1 << 7)
-    register['f'] &= ~(1 << 6)
-    register['f'] |= (1 << 5)
+    hl = register['h'] << 8 | register ['l']
+    temp = mmu.read(hl)
+    register['f'] &= 0x80
+    if temp & 0x20 == 0:
+        register['f'] |= 0x80
 
 
 def cb_7f(register):
-    if register['a'] & (1 << 7):
-        register['f'] &= ~(1 << 7)
-    else:
-        register['f'] |= (1 << 7)
-    register['f'] &= ~(1 << 6)
-    register['f'] |= (1 << 5)
+    register['f'] &= 0x20
+    if register['a'] & 0x80 == 0:
+        register['f'] |= 0x80
+
+
+def cb_80(register):
+    register['b'] &= 0xfe
+
+
+def cb_81(register):
+    register['c'] &= 0xfe
+
+
+def cb_82(register):
+    register['d'] &= 0xfe
+
+
+def cb_83(register):
+    register['e'] &= 0xfe
+
+
+def cb_84(register):
+    register['h'] &= 0xfe
+
+
+def cb_85(register):
+    register['l'] &= 0xfe
 
 
 def cb_86(register):
@@ -1188,6 +1228,37 @@ def cb_86(register):
 
 def cb_87(register):
     register['a'] &= 0xfe
+
+
+def cb_88(register):
+    register['b'] &= 0xfd
+
+
+def cb_89(register):
+    register['c'] &= 0xfd
+
+
+def cb_8a(register):
+    register['d'] &= 0xfd
+
+
+def cb_8b(register):
+    register['e'] &= 0xfd
+
+
+def cb_8c(register):
+    register['h'] &= 0xfd
+
+
+def cb_8d(register):
+    register['l'] &= 0xfd
+
+
+def cb_8e(register):
+    hl = register['h'] << 8 | register['l']
+    temp = mmu.read(hl)
+    temp &= 0xfd
+    mmu.write(hl, temp)
 
 
 def cb_8f(register):
@@ -1226,7 +1297,31 @@ def cb_96(register):
 
 
 def cb_97(register):
-    register['a'] &= 0xfb
+    register['a'] &= 0xf7
+
+
+def cb_98(register):
+    register['b'] &= 0xf7
+
+
+def cb_99(register):
+    register['c'] &= 0xf7
+
+
+def cb_9a(register):
+    register['d'] &= 0xf7
+
+
+def cb_9b(register):
+    register['e'] &= 0xf7
+
+
+def cb_9c(register):
+    register['h'] &= 0xf7
+
+
+def cb_9d(register):
+    register['l'] &= 0xf7
 
 
 def cb_9e(register):
@@ -1236,8 +1331,43 @@ def cb_9e(register):
     mmu.write(hl, temp)
 
 
-def cb_a6(register):
+def cb_9f(register):
+    register['l'] &= 0xf7
+
+
+def cb_a0(register):
     register['b'] &= 0xef
+
+
+def cb_a1(register):
+    register['c'] &= 0xef
+
+
+def cb_a2(register):
+    register['d'] &= 0xef
+
+
+def cb_a3(register):
+    register['e'] &= 0xef
+
+
+def cb_a4(register):
+    register['h'] &= 0xef
+
+
+def cb_a5(register):
+    register['l'] &= 0xef
+
+
+def cb_a6(register):
+    hl = register['h'] << 8 | register['l']
+    temp = mmu.read(hl)
+    temp &= 0xef
+    mmu.write(hl, temp)
+
+
+def cb_a7(register):
+    register['a'] &= 0xef
 
     
 def cb_a8(register):
@@ -1273,13 +1403,76 @@ def cb_ae(register):
 
 def cb_af(register):
     register['a'] &= 0xdf
+
+
+def cb_b0(register):
+    register['b'] &= 0xdf
+
+
+def cb_b1(register):
+    register['c'] &= 0xdf
+
+
+def cb_b2(register):
+    register['d'] &= 0xdf
+
+
+def cb_b3(register):
+    register['e'] &= 0xdf
+
+
+def cb_b4(register):
+    register['h'] &= 0xdf
+
+
+def cb_b5(register):
+    register['l'] &= 0xdf
+
+
+def cb_b6(register):
+    hl = register['h'] << 8 | register['l']
+    temp = mmu.read(hl)
+    temp &= 0xdf
+    mmu.write(hl, temp)
+
+
+def cb_b7(register):
+    register['a'] &= 0xdf
     
+
+def cb_b8(register):
+    register['b'] &= 0x7f
+
+
+def cb_b9(register):
+    register['c'] &= 0x7f
+
+
+def cb_ba(register):
+    register['d'] &= 0x7f
+
+
+def cb_bb(register):
+    register['e'] &= 0x7f
+
+
+def cb_bc(register):
+    register['h'] &= 0x7f
+
+
+def cb_bd(register):
+    register['l'] &= 0x7f
+
 
 def cb_be(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0x7f
     mmu.write(hl, temp)
+
+
+def cb_bf(register):
+    register['a'] &= 0x7f
 
 
 def cb_d6(register):
@@ -1379,14 +1572,14 @@ cb_lookup = {
     0x28: cb_28, 0x29: cb_29, 0x2a: cb_2a, 0x2b: cb_2b, 0x2c: cb_2c, 0x2d: cb_2d, 0x2e: cb_2e, 0x2f: cb_2f, 
     0x30: cb_30, 0x31: cb_31, 0x32: cb_32, 0x33: cb_33, 0x34: cb_34, 0x35: cb_35, 0x36: cb_36, 0x37: cb_37,
     0x38: cb_38, 0x39: cb_39, 0x3a: cb_3a, 0x3b: cb_3b, 0x3c: cb_3c, 0x3d: cb_3d, 0x3e: cb_3e, 0x3f: cb_3f,
-    0x40: cb_40, 0x41: cb_41, 0x42: cb_42, 0x46: cb_46, 0x47: cb_47,
+    0x40: cb_40, 0x41: cb_41, 0x42: cb_42, 0x43: cb_43, 0x44: cb_44, 0x45: cb_45, 0x46: cb_46, 0x47: cb_47,
     0x48: cb_48, 0x49: cb_49, 0x4a: cb_4a, 0x4b: cb_4b, 0x4c: cb_4c, 0x4d: cb_4d, 0x4e: cb_4e, 0x4f: cb_4f, 
     0x50: cb_50, 0x51: cb_51, 0x52: cb_52, 0x53: cb_53, 0x54: cb_54, 0x55: cb_55, 0x56: cb_56, 0x57: cb_57,
     0x58: cb_58, 0x59: cb_59, 0x5a: cb_5a, 0x5b: cb_5b, 0x5c: cb_5c, 0x5d: cb_5d, 0x5e: cb_5e, 0x5f: cb_5f,
     0x60: cb_60, 0x61: cb_61, 0x62: cb_62, 0x63: cb_63, 0x64: cb_64, 0x65: cb_65, 0x66: cb_66, 0x67: cb_67,
     0x68: cb_68, 0x69: cb_69, 0x6a: cb_6a, 0x6b: cb_6b, 0x6c: cb_6c, 0x6d: cb_6d, 0x6e: cb_6e, 0x6f: cb_6f,
     0x70: cb_70, 0x71: cb_71, 0x72: cb_72, 0x73: cb_73, 0x74: cb_74, 0x75: cb_75, 0x76: cb_76, 0x77: cb_77, 
-    0x78: cb_78, 0x7c: cb_7c, 0x7e: cb_7e, 0x7f: cb_7f, 
+    0x78: cb_78, 0x79: cb_79, 0x7a: cb_7a, 0x7b: cb_7b, 0x7c: cb_7c, 0x7d: cb_7d, 0x7e: cb_7e, 0x7f: cb_7f, 
     0x86: cb_86, 0x87: cb_87,
     0x8f: cb_8f,
     0x90: cb_90, 0x91: cb_91, 0x92: cb_92, 0x93: cb_93, 0x94: cb_94, 0x95: cb_95, 0x96: cb_96, 0x97: cb_97, 
