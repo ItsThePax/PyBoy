@@ -67,15 +67,17 @@ def cb_05(register):
 
         
 def cb_06(register):
-    hl = mmu.read(
+    hl = register['h'] << 8 | register['l']
+    temp = mmu.read(hl)
     register['f'] = 0
-    register['b'] <<= 1
-    if register['b'] == 0:
+    temp <<= 1
+    if temp == 0:
         register['f'] |= 0x80
-    elif register['b'] > 0xff:
-        register['f'] |= 0x10
-        register['b'] += 1
-        register['b'] &= 0xff
+    elif temp > 0xff:
+        temp |= 0x10
+        temp += 1
+        temp &= 0xff
+    mmu.write(hl, temp)
 
         
 def cb_07(register):
@@ -354,7 +356,7 @@ def cb_25(register):
 
 
 def cb_26(register):
-    hl = register['h'] << 8 | register['e']
+    hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp <<= 1
     register['f'] = 0
@@ -431,7 +433,7 @@ def cb_2d(register):
 
 
 def cb_2e(register):
-    hl = register['h'] << 8 | register['e']
+    hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     register['f'] = 0
     h = temp & 0x80
@@ -444,7 +446,7 @@ def cb_2e(register):
 
 def cb_2f(register):
     register['f'] = 0
-    h = register['a'] & 0x80
+    temp = register['a'] & 0x80
     if register['a'] & 0x1:
         register['f'] = 0x10
     register['a'] >>= 1
@@ -1074,7 +1076,7 @@ def cb_95(register):
 
 
 def cb_96(register):
-    hl = register['h'] << 8 | register['e']
+    hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0xfb
     mmu.write(hl, temp)
@@ -1085,7 +1087,7 @@ def cb_97(register):
 
 
 def cb_9e(register):
-    hl = register['h'] << 8 | register['e']
+    hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0xf7
     mmu.write(hl, temp)
@@ -1215,7 +1217,7 @@ def cb_fd(register):
 
 
 def cb_fe(register):
-    hl = register['h'] << 8 | register['e']
+    hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp |= 0x80
     mmu.write(hl, temp)

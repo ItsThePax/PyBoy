@@ -5,6 +5,7 @@ memdump.bin
 
 #'illegal' rom files
 *.gb
+*.gbc
 
 # Windows image file caches
 Thumbs.db
