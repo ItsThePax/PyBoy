@@ -8,7 +8,7 @@ import debug
 
 t0, t1 = 0, 0
 screen = pygame.display.set_mode((160, 144))
-start_logging = 0x100ffffffffffff
+start_logging = 0x100FFFFFFFFFFFFFFFFFFFFF
 cpu.mmu.customboot = 1
 last_instruction = 0
 div = 0
@@ -16,7 +16,6 @@ timer = 0
 
 
 filename = 'Pokemon Blue.gb'
-custom_boot = 'DMG_quickboot.bin'
 
 
 def do_cpu():
@@ -137,7 +136,7 @@ def get_controls():
 cpu.load(filename)
 gpu.frame = 0
 if cpu.mmu.customboot == 1:
-    cpu.loadboot(custom_boot)
+    cpu.loadboot('DMG_quickboot.bin')
 while 1:
     if cpu.reg['pc'] == start_logging:
         debug.level = 1
@@ -169,6 +168,7 @@ while 1:
         clock = 4
     do_timing(clock)
     gpu.do_gpu(screen)
+    get_controls()
     
      
 print("The PC is currently at:")

@@ -7,21 +7,19 @@ reg = {'a': 0, 'f': 0, 'b': 0, 'c': 0, 'd': 0, 'e': 0, 'h': 0, 'l': 0, 'sp': 0, 
 run = 1
 
 def load(file):
-    try:
-        f = open(file, "rb")
-    except TypeError:
-        return
+    f = open(file, "rb")
     i = 0
     byte = f.read(1)
     while bool(byte) is not False:
         byte = int(codecs.encode(byte, 'hex'), 16)   
-        mmu.cart.append(byte)
+        mmu.cart[i] = byte
+        byte = f.read(1)
         i += 1
     f.close()
     mmu.cartrage_type = mmu.cart[0x0147]
     mmu.rom_size = mmu.cart[0x0148]
     mmu.ram_size = mmu.cart[0x0149]
-    
+
 
 def loadboot(file):
     f = open(file, "rb")
@@ -29,7 +27,7 @@ def loadboot(file):
     byte = f.read(1)
     while bool(byte) is not False:
         byte = int(codecs.encode(byte, 'hex'), 16)   
-        mmu.externalbootloader.append(byte)
+        mmu.externalbootloader[i] = byte
         byte = f.read(1)
         i += 1
     f.close()
@@ -1266,7 +1264,7 @@ def op_8e(register):
         register['f'] |= 0x20
     if register['a'] == 0:
         register['f'] |= 0x80
-    return 8
+    return 4
 
 
 def op_8f(register):
