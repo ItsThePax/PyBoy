@@ -15,7 +15,7 @@ div = 0
 timer = 0
 
 
-filename = 'Pokemon Blue.gb'
+filename = 'Tetris (World).gb'
 
 
 def do_cpu():
