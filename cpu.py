@@ -27,7 +27,7 @@ def loadboot(file):
     byte = f.read(1)
     while bool(byte) is not False:
         byte = int(codecs.encode(byte, 'hex'), 16)   
-        mmu.externalbootloader[i] = byte
+        mmu.bootloader.append(byte)
         byte = f.read(1)
         i += 1
     f.close()
@@ -1893,7 +1893,7 @@ def op_c4(register, b1, b2):
     if register['f'] & 0x80:
         return 12
     else:
-	mmu.write(register['sp'] - 1, register['pc'] >> 8)
+        mmu.write(register['sp'] - 1, register['pc'] >> 8)
         mmu.write(register['sp'] - 2, register['pc'] & 0xff)
         register['pc'] = (b2 << 8) + b1
         register['sp'] -= 2
@@ -2031,7 +2031,7 @@ def op_d4(register, b1, b2):
     if register['f'] & 0x10:
         return 12
     else:
-	mmu.write(register['sp'] - 1, register['pc'] >> 8)
+        mmu.write(register['sp'] - 1, register['pc'] >> 8)
         mmu.write(register['sp'] - 2, register['pc'] & 0xff)
         register['pc'] = (b2 << 8) + b1
         register['sp'] -= 2
@@ -2172,19 +2172,19 @@ def op_e7(register):
 
 
 def op_e8(register, b1):
-        if b1 > 127:
-            b1 = ~(255 - b1)
-	h = register['sp']
-        if (h & 0xf) + (register['sp'] & 0xf) > 0xf:
-            register['f'] = 0x10
-	else :
-            register['f'] = 0
+    if b1 > 127:
+        b1 = ~(255 - b1)
+    h = register['sp']
+    if (h & 0xf) + (register['sp'] & 0xf) > 0xf:
+        register['f'] = 0x10
+    else :
+        register['f'] = 0
         register['sp'] += b1
         if (register['sp'] & 0xff) + h > 0xff:
             register['f'] |= 0x80
-        return 16
-	
-	
+    return 16
+    
+    
 def op_e9(register):
     hl = register['h'] << 8 | register['l']
     register['pc'] = hl

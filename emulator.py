@@ -1,20 +1,19 @@
 import cpu
 import struct
-import pygame
 import gpu
 import time
 import interrupts
 import debug
+import pygame
 
 t0, t1 = 0, 0
 screen = pygame.display.set_mode((160, 144))
 start_logging = 0xffff
-cpu.mmu.customboot = 1
 last_instruction = 0
 div = 0
 timer = 0
 
-
+boot_loader = 'DMG_quickboot.bin'
 filename = 'Tetris (World).gb'
 
 
@@ -135,8 +134,7 @@ def get_controls():
 
 cpu.load(filename)
 gpu.frame = 0
-if cpu.mmu.customboot == 1:
-    cpu.loadboot('DMG_quickboot.bin')
+cpu.loadboot(boot_loader)
 while 1:
     if cpu.reg['pc'] == start_logging:
         debug.level = 1
@@ -144,7 +142,7 @@ while 1:
     if cpu.run == 1:
         try:
             clock = do_cpu()
-        except KeyError, TypeError:
+        except (KeyError, TypeError):
             if cpu.mmu.read(last_instruction) == 0xcb:
                 print("Need to implement the following *CB* command:")
                 print(hex(cpu.mmu.read(last_instruction + 1)))
