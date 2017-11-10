@@ -1,122 +1,96 @@
 import mmu
 import cpu
 import debug
-IME = 0
-EI = 0
-DI = 0
 
 
-def interrupts(running, register):
-    global EI, DI, IME
+
+def interrupts(running, register, state):
     if debug.level > 0:
-        debug.l.write('EL:{0} DI:{1} IME:{2}\n' .format(EI, DI, IME))
-    if EI > 0:
+        debug.l.write('EI:{0} DI:{1} IME:{2}\n' .format(state[0], state[1], state[2]))
+    if state[0] > 0:
         if debug.level > 0:
-            debug.l.write('EI triggered: {0}\n' .format(EI))
-        if EI > 1:
-            IME = 1
-            EI = 0
+            debug.l.write('EI triggered: {0}\n' .format(state[0]))
+        if state[0] > 1:
+            state[2] = 1
+            state[0] = 0
             if debug.level > 0:
-                debug.l.write('IME enabled: {0}\n' .format(IME))
+                debug.l.write('IME enabled: {0}\n' .format(state[2]))
         else:
-            EI += 1
-    if DI > 0:
+            state[0] += 1
+    elif state[1] > 0:
         if debug.level > 0:
-            debug.l.write('DI triggered: {0}\n' .format(DI))
-        if DI > 1:
-            IME = 0
-            DI = 0
+            debug.l.write('DI triggered: {0}\n' .format(state[1]))
+        if state[1] > 1:
+            state[2] = 0
+            state[1] = 0
             if debug.level > 0:
-                debug.l.write('IME enabled: {0}\n' .format(IME))
+                debug.l.write('IME enabled: {0}\n' .format(state[2]))
         else:
-            DI += 1
+            state[1] += 1
     if mmu.memory[0xff0f] & 0x1:
         if mmu.memory[0xffff] & 0x1:
-            if IME:
+            if state[2]:
                 if debug.level > 0:
                     debug.l.write('IME enabled, ***vblank interrupt***\n\n')
-                IME = 0
-                cpu.run = 1
-                mmu.write(0xff0f, 0)
-                mmu.write(register['sp'] - 1, (register['pc'] >> 8))
-                mmu.write(register['sp'] - 2, (register['pc'] & 0xff))
+                state[2] = 0
+                running = 1
+                mmu.write(register['clock'], 0xff0f, 0)
+                mmu.write(register['clock'], register['sp'] - 1, (register['pc'] >> 8))
+                mmu.write(register['clock'], register['sp'] - 2, (register['pc'] & 0xff))
                 register['sp'] -= 2
                 register['pc'] = 0x40
-                register['clock'] += 16
-                
-            else:
-                if running == 0:
-                    cpu.run = 1
-
-    if mmu.memory[0xff0f] & 0x2:
+                register['clock'] += 16 
+    elif mmu.memory[0xff0f] & 0x2:
         if mmu.memory[0xffff] & 0x2:
-            if IME:
+            if state[2]:
                 if debug.level > 0:
                     debug.l.write('IME enabled, ***LCDC interrupt***\n\n')
-                IME = 0
-                cpu.run = 1
-                mmu.write(0xff0f, 0)
-                mmu.write(register['sp'] - 1, (register['pc'] >> 8))
-                mmu.write(register['sp'] - 2, (register['pc'] & 0xff))
+                state[2] = 0
+                running = 1
+                mmu.write(register['clock'], 0xff0f, 0)
+                mmu.write(register['clock'], register['sp'] - 1, (register['pc'] >> 8))
+                mmu.write(register['clock'], register['sp'] - 2, (register['pc'] & 0xff))
                 register['sp'] -= 2
                 register['pc'] = 0x48
                 register['clock'] += 16
-                
-            else:
-                if running == 0:
-                    cpu.run = 1
-
-    if mmu.memory[0xff0f] & 0x4:
+    elif mmu.memory[0xff0f] & 0x4:
         if mmu.memory[0xffff] & 0x4:
-            if IME:
+            if state[2]:
                 if debug.level > 0:
-                    debug.l.write('IME enabled, ***timer interrupt***\n\n')
-                IME = 0
-                cpu.run = 1
-                mmu.write(0xff0f, 0)
-                mmu.write(register['sp'] - 1, (register['pc'] >> 8))
-                mmu.write(register['sp'] - 2, (register['pc'] & 0xff))
+                    debug.l.write('IME enabled, ***tstate[2]r interrupt***\n\n')
+                state[2] = 0
+                running = 1
+                mmu.write(register['clock'], 0xff0f, 0)
+                mmu.write(register['clock'], register['sp'] - 1, (register['pc'] >> 8))
+                mmu.write(register['clock'], register['sp'] - 2, (register['pc'] & 0xff))
                 register['sp'] -= 2
                 register['pc'] = 0x50
                 register['clock'] += 16
-                
-            else:
-                if running == 0:
-                    cpu.run = 1
-
-    if mmu.memory[0xff0f] & 0x8:
+    elif mmu.memory[0xff0f] & 0x8:
         if mmu.memory[0xffff] & 0x8:
-            if IME:
+            if state[2]:
                 if debug.level > 0:
                     debug.l.write('IME enabled, ***serial IO interrupt***\n\n')
-                IME = 0
-                cpu.run = 1
-                mmu.write(0xff0f, 0)
-                mmu.write(register['sp'] - 1, (register['pc'] >> 8))
-                mmu.write(register['sp'] - 2, (register['pc'] & 0xff))
+                state[2] = 0
+                running = 1
+                mmu.write(register['clock'], 0xff0f, 0)
+                mmu.write(register['clock'], register['sp'] - 1, (register['pc'] >> 8))
+                mmu.write(register['clock'], register['sp'] - 2, (register['pc'] & 0xff))
                 register['sp'] -= 2
                 register['pc'] = 0x58
                 register['clock'] += 16
-                
-            else:
-                if running == 0:
-                    cpu.run = 1
-
-    if mmu.memory[0xff0f] & 0x16:
+    elif mmu.memory[0xff0f] & 0x16:
         if mmu.memory[0xffff] & 0x16:
-            if IME:
+            if state[2]:
                 if debug.level > 0:
                     debug.l.write('IME enabled, ***input interrupt***\n\n')
-                IME = 0
-                cpu.run = 1
-                mmu.write(0xff0f, 0)
-                mmu.write(register['sp'] - 1, (register['pc'] >> 8))
-                mmu.write(register['sp'] - 2, (register['pc'] & 0xff))
+                state[2] = 0
+                running = 1
+                mmu.write(register['clock'], 0xff0f, 0)
+                mmu.write(register['clock'], register['sp'] - 1, (register['pc'] >> 8))
+                mmu.write(register['clock'], register['sp'] - 2, (register['pc'] & 0xff))
                 register['sp'] -= 2
                 register['pc'] = 0x60
                 register['clock'] += 16
-                
-            else:
-                if running == 0:
-                    cpu.run = 1
-                    
+    return running
+    

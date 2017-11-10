@@ -77,7 +77,7 @@ def cb_06(register):
         temp |= 0x10
         temp += 1
         temp &= 0xff
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
         
 def cb_07(register):
@@ -91,7 +91,7 @@ def cb_07(register):
         register['f'] |= 0x10
         register['a'] += 1
         register['a'] &= 0xff
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
     
 def cb_08(register):
@@ -171,7 +171,7 @@ def cb_0e(register):
         register['f'] = 0x10
     if temp == 0:
         register['f'] |= 0x80
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_0f(register):
@@ -260,7 +260,7 @@ def cb_16(register):
     temp &= 0xff
     if temp == 0:
         register['f'] |= 0x80
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
         
 
 def cb_17(register):
@@ -344,7 +344,7 @@ def cb_1e(register):
     temp >>= 1
     if temp == 0:
         register['f'] |= 0x80
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_1f(register):
@@ -427,7 +427,7 @@ def cb_26(register):
     temp &= 0xff
     if temp == 0:
         register['f'] |= 0x80
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_27(register):
@@ -503,7 +503,7 @@ def cb_2e(register):
         register['f'] = 0x10
     temp >>= 1
     temp |= h
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_2f(register):
@@ -592,7 +592,7 @@ def cb_36(register):
     temp >>= 4
     temp |= n
     register['f'] = 0
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
         
 
 def cb_37(register):
@@ -676,7 +676,7 @@ def cb_3e(register):
     temp >>= 1
     if temp == 0:
         register['f'] |= 0x80
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
         
 
 def cb_3f(register):
@@ -1223,7 +1223,7 @@ def cb_86(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0xfe
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
     
 
 def cb_87(register):
@@ -1258,7 +1258,7 @@ def cb_8e(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0xfd
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_8f(register):
@@ -1293,7 +1293,7 @@ def cb_96(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0xfb
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_97(register):
@@ -1328,7 +1328,7 @@ def cb_9e(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0xf7
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_9f(register):
@@ -1363,7 +1363,7 @@ def cb_a6(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0xef
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_a7(register):
@@ -1398,7 +1398,7 @@ def cb_ae(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0xdf
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
     
 
 def cb_af(register):
@@ -1433,7 +1433,7 @@ def cb_b6(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0xdf
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_b7(register):
@@ -1468,7 +1468,7 @@ def cb_be(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp &= 0x7f
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_bf(register):
@@ -1503,7 +1503,7 @@ def cb_c6(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp |= 0x1
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_c7(register):
@@ -1538,7 +1538,7 @@ def cb_ce(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp |= 0x2
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_cf(register):
@@ -1573,7 +1573,7 @@ def cb_d6(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp |= 0x4
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_d7(register):
@@ -1608,7 +1608,7 @@ def cb_de(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp |= 0x8
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_df(register):
@@ -1643,7 +1643,7 @@ def cb_e6(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp |= 0x10
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_e7(register):
@@ -1678,7 +1678,7 @@ def cb_ee(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp |= 0x20
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_ef(register):
@@ -1713,7 +1713,7 @@ def cb_f6(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp |= 0x40
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_f7(register):
@@ -1748,7 +1748,7 @@ def cb_fe(register):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     temp |= 0x80
-    mmu.write(hl, temp)
+    mmu.write(0, hl, temp)
 
 
 def cb_ff(register):

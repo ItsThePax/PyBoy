@@ -3,8 +3,6 @@ import cb
 import codecs
 import interrupts
 
-reg = {'a': 0, 'f': 0, 'b': 0, 'c': 0, 'd': 0, 'e': 0, 'h': 0, 'l': 0, 'sp': 0, 'pc': 0, 'clock': 0}
-run = 1
 
 def load(file):
     f = open(file, "rb")
@@ -16,7 +14,10 @@ def load(file):
         byte = f.read(1)
         i += 1
     f.close()
-    mmu.cartrage_type = mmu.cart[0x0147]
+    if mmu.cart[0x0147] == 0:
+        mmu.cartrage_type = 0
+    elif 0xf <= mmu.cart[0x0147] < 0x14:
+        mmu.cartrage_type = 3
     mmu.rom_size = mmu.cart[0x0148]
     mmu.ram_size = mmu.cart[0x0149]
 
@@ -33,23 +34,23 @@ def loadboot(file):
     f.close()
 
 
-def op_00(register):
+def op_00(register, b, interrupts):
     return 4
 
 
-def op_01(register, b1, b2):
-    register['b'] = b2
-    register['c'] = b1
+def op_01(register, b, interrupts):
+    register['b'] = b[2]
+    register['c'] = b[1]
     return 12
 
 
-def op_02(register):
+def op_02(register, b, interrupts):
     bc = register['b'] << 8 | register['c']
-    mmu.write(bc, register['a'])
+    mmu.write(register['clock'], bc, register['a'], )
     return 8
 
 
-def op_03(register):
+def op_03(register, b, interrupts):
     bc = (register['b'] << 8) + register['c']
     bc += 1
     register['b'] = bc >> 8
@@ -57,7 +58,7 @@ def op_03(register):
     return 8
 
 
-def op_04(register):
+def op_04(register, b, interrupts):
     h = register['b']
     register['b'] += 1
     if register['b'] == 0x0:
@@ -73,7 +74,7 @@ def op_04(register):
     return 4
 
 
-def op_05(register):
+def op_05(register, b, interrupts):
     h = register['b']
     register['b'] -= 1
     if register['b'] == 0x0:
@@ -90,12 +91,12 @@ def op_05(register):
     return 4
 
 
-def op_06(register, b1):
-    register['b'] = b1
+def op_06(register, b, interrupts):
+    register['b'] = b[1]
     return 8
 
 
-def op_07(register):
+def op_07(register, b, interrupts):
     temp = register['a'] & 0x80
     register['a'] <<= 1
     register['a'] &= 0xff
@@ -106,14 +107,14 @@ def op_07(register):
     return 4
 
 
-def op_08(register, b1, b2):
-    temp = b2 << 8 | b1
-    mmu.write(temp, register['sp'] & 0xff)
-    mmu.write(temp + 1, register['sp'] >> 8)
+def op_08(register, b, interrupts):
+    temp = b[2] << 8 | b[1]
+    mmu.write(register['clock'], temp, register['sp'] & 0xff)
+    mmu.write(register['clock'], temp + 1, register['sp'] >> 8)
     return 20
 
 
-def op_09(register):
+def op_09(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     bc = (register['b'] << 8) | register['c']
     temp = hl
@@ -129,13 +130,13 @@ def op_09(register):
     return 8
 
 
-def op_0a(register):
+def op_0a(register, b, interrupts):
     bc = (register['b'] << 8) | register['c']
     register['a'] = mmu.read(bc)
     return 8
 
 
-def op_0b(register):
+def op_0b(register, b, interrupts):
     bc = register ['b'] << 8 | register['c']
     bc -= 1
     if bc < 0:
@@ -145,7 +146,7 @@ def op_0b(register):
     return 8
 
 
-def op_0c(register):
+def op_0c(register, b, interrupts):
     h = register['c']
     register['c'] += 1
     if register['c'] == 0x0:
@@ -160,7 +161,7 @@ def op_0c(register):
     return 4
 
 
-def op_0d(register):
+def op_0d(register, b, interrupts):
     h = register['c']
     register['c'] -= 1
     register['f'] = 0x40
@@ -174,7 +175,7 @@ def op_0d(register):
     return 4
 
 
-def op_0f(register):
+def op_0f(register, b, interrupts):
     if register['a'] & 1:
         register['f'] = 0x10
         register['a'] += 0x100
@@ -184,30 +185,30 @@ def op_0f(register):
     return 4
 
 
-def op_0e(register, b1):
-    register['c'] = b1
+def op_0e(register, b, interrupts):
+    register['c'] = b[1]
     return 8
 
 
 
-def op_10(register):
+def op_10(register, b, interrupts):
     while True:
         print('STOP 0')
 
 
-def op_11(register, b1, b2):
-    register['d'] = b2
-    register['e'] = b1
+def op_11(register, b, interrupts):
+    register['d'] = b[2]
+    register['e'] = b[1]
     return 12
 
 
-def op_12(register):
+def op_12(register, b, interrupts):
     de = register['d'] << 8 | register['e']
-    mmu.write(de, register['a'])
+    mmu.write(register['clock'], de, register['a'])
     return 8    
 
 
-def op_13(register):
+def op_13(register, b, interrupts):
     de = (register['d'] << 8) + register['e']
     de += 1
     register['d'] = de >> 8
@@ -215,7 +216,7 @@ def op_13(register):
     return 8
 
 
-def op_14(register):
+def op_14(register, b, interrupts):
     h = register['d']
     register['d'] += 1
     if register['d'] == 0x0:
@@ -230,7 +231,7 @@ def op_14(register):
     return 4
 
 
-def op_15(register):
+def op_15(register, b, interrupts):
     h = register['d']
     register['d'] -= 1
     register['f'] = 0x40
@@ -244,12 +245,12 @@ def op_15(register):
     return 4
 
 
-def op_16(register, b1):
-    register['d'] = b1
+def op_16(register, b, interrupts):
+    register['d'] = b[1]
     return 8
 
 
-def op_17(register):
+def op_17(register, b, interrupts):
     temp = (register['f'] & 0x10) >> 4
     register['a'] <<= 1
     if register['a'] > 0xff:
@@ -261,14 +262,14 @@ def op_17(register):
     return 4
 
 
-def op_18(register, b1):
-    if b1 > 127:
-        b1 = ~(255 - b1)
-    register['pc'] += b1
+def op_18(register, b, interrupts):
+    if b[1] > 127:
+        b[1] = ~(255 - b[1])
+    register['pc'] += b[1]
     return 12
 
 
-def op_19(register):
+def op_19(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     de = (register['d'] << 8) | register['e']
     temp = hl
@@ -284,13 +285,13 @@ def op_19(register):
     return 8
     
     
-def op_1a(register):
+def op_1a(register, b, interrupts):
     de = (register['d'] << 8) | register['e']
     register['a'] = mmu.read(de)
     return 8
 
 
-def op_1b(register):
+def op_1b(register, b, interrupts):
     de = register ['d'] << 8 | register['e']
     de -= 1
     if de < 0:
@@ -300,7 +301,7 @@ def op_1b(register):
     return 8
 
 
-def op_1c(register):
+def op_1c(register, b, interrupts):
     h = register['e']
     register['e'] += 1
     if register['e'] == 0x0:
@@ -315,7 +316,7 @@ def op_1c(register):
     return 4
     
     
-def op_1d(register):
+def op_1d(register, b, interrupts):
     h = register['e']
     register['e'] -= 1
     register['f'] = 0x40
@@ -329,12 +330,12 @@ def op_1d(register):
     return 4
 
 
-def op_1e(register, b1):
-    register['e'] = b1
+def op_1e(register, b, interrupts):
+    register['e'] = b[1]
     return 8
 
 
-def op_1f(register):
+def op_1f(register, b, interrupts):
     if register['f'] & 0x10:
         register['a'] += 0x100
     if register['a'] & 1:
@@ -345,32 +346,32 @@ def op_1f(register):
     return 4
 
 
-def op_20(register, b1):
+def op_20(register, b, interrupts):
     if register['f'] & 0x80:
         return 8
     else:
-        if b1 > 127:
-            b1 = ~(255 - b1)
-        register['pc'] += b1
+        if b[1] > 127:
+            b[1] = ~(255 - b[1])
+        register['pc'] += b[1]
         return 12
 
 
-def op_21(register, b1, b2):
-    register['h'] = b2
-    register['l'] = b1
+def op_21(register, b, interrupts):
+    register['h'] = b[2]
+    register['l'] = b[1]
     return 12
 
 
-def op_22(register):
+def op_22(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
-    mmu.write(hl, reg['a'])
+    mmu.write(register['clock'], hl, register['a'])
     hl += 1
     register['h'] = hl >> 8
     register['l'] = hl & 0xff
     return 8
 
 
-def op_23(register):
+def op_23(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
     hl += 1
     register['h'] = hl >> 8
@@ -378,7 +379,7 @@ def op_23(register):
     return 8
 
 
-def op_24(register):
+def op_24(register, b, interrupts):
     e = register['h']
     register['h'] += 1
     if register['h'] == 0x0:
@@ -393,7 +394,7 @@ def op_24(register):
     return 4
 
 
-def op_25(register):
+def op_25(register, b, interrupts):
     h = register['h']
     register['h'] -= 1
     if register['h'] < 0:
@@ -410,12 +411,12 @@ def op_25(register):
     return 4
 
 
-def op_26(register, b1):
-    register['h'] = b1
+def op_26(register, b, interrupts):
+    register['h'] = b[1]
     return 8
 
 
-def op_27(register):
+def op_27(register, b, interrupts):
     n = register['f'] & 0x40
     h = register['f'] & 0x20
     c = register['f'] & 0x10
@@ -471,17 +472,17 @@ def op_27(register):
     return 4
 
 
-def op_28(register, b1):
+def op_28(register, b, interrupts):
     if register['f'] & 0x80:
-        if b1 > 127:
-            b1 = ~(255 - b1)
-        register['pc'] += b1
+        if b[1] > 127:
+            b[1] = ~(255 - b[1])
+        register['pc'] += b[1]
         return 12
     else:
         return 8
 
 
-def op_29(register):
+def op_29(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     temp = hl
     hl += hl
@@ -496,7 +497,7 @@ def op_29(register):
     return 8
 
 
-def op_2a(register):
+def op_2a(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
     register['a'] = mmu.read(hl)
     hl += 1
@@ -506,7 +507,7 @@ def op_2a(register):
     return 8
 
 
-def op_2b(register):
+def op_2b(register, b, interrupts):
     hl = register ['h'] << 8 | register['l']
     hl -= 1
     if hl < 0:
@@ -516,7 +517,7 @@ def op_2b(register):
     return 8
 
 
-def op_2c(register):
+def op_2c(register, b, interrupts):
     h = register['l']
     register['l'] += 1
     if register['l'] == 0x0:
@@ -531,7 +532,7 @@ def op_2c(register):
     return 4
 
 
-def op_2d(register):
+def op_2d(register, b, interrupts):
     h = register['l']
     register['l'] -= 1
     if register['l'] == 0x0:
@@ -546,35 +547,35 @@ def op_2d(register):
     return 4
 
 
-def op_2e(register, b1):
-    register['l'] = b1
+def op_2e(register, b, interrupts):
+    register['l'] = b[1]
     return 4
 
-def op_2f(register):
+def op_2f(register, b, interrupts):
     register['a'] = ~register['a'] + 256
     register['f'] |= 0x60
     return 4
 
 
-def op_30(register, b1):
+def op_30(register, b, interrupts):
     if register['f'] & 0x10:
         return 8
     else:
-        if b1 > 127:
-            b1 = ~(255 - b1)
-        register['pc'] += b1
+        if b[1] > 127:
+            b[1] = ~(255 - b[1])
+        register['pc'] += b[1]
         return 12
 
 
-def op_31(register, b1, b2):
-    register['sp'] = b2 << 8
-    register['sp'] = reg['sp'] | b1
+def op_31(register, b, interrupts):
+    register['sp'] = b[2] << 8
+    register['sp'] = register['sp'] | b[1]
     return 12
 
 
-def op_32(register):
+def op_32(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
-    mmu.write(hl, reg['a'])
+    mmu.write(register['clock'], hl, register['a'])
     hl -= 1
     if hl < 0:
         hl += 0x10000
@@ -583,16 +584,16 @@ def op_32(register):
     return 8
 
 
-def op_33(register):
+def op_33(register, b, interrupts):
     register['sp'] += 1
     return 8
 
 
-def op_34(register):
+def op_34(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     h = mmu.read(hl)
     value = h + 1
-    mmu.write(hl, value)
+    mmu.write(register['clock'], hl, value)
     if (value) == 0x0:
         register['f'] |= 0x80
     else:
@@ -605,7 +606,7 @@ def op_34(register):
     return 4
 
 
-def op_35(register):
+def op_35(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     value = mmu.read(hl)
     h = value
@@ -619,35 +620,35 @@ def op_35(register):
         register['f'] |= 0x20
     else:
         register['f'] &= ~0x20
-    mmu.write(hl, value)
+    mmu.write(register['clock'], hl, value)
     return 12
 
 
-def op_36 (register, b1):
+def op_36 (register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
-    mmu.write(hl, b1)
+    mmu.write(register['clock'], hl, b[1])
     register['h'] = hl >> 8
     register['l'] = hl & 0xff
     return 12
 
 
-def op_37(register):
+def op_37(register, b, interrupts):
     register['f'] &= 0x80
     register['f'] += 1
     return 4
 
 
-def op_38(register, b1):
+def op_38(register, b, interrupts):
     if register['f'] & 0x10:
-        if b1 > 127:
-            b1 = ~(255 - b1)
-        register['pc'] += b1
+        if b[1] > 127:
+            b[1] = ~(255 - b[1])
+        register['pc'] += b[1]
         return 12
     else:
         return 8
 
 
-def op_39(register):
+def op_39(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     temp = hl
     hl += register['sp']
@@ -662,7 +663,7 @@ def op_39(register):
     return 8
 
 
-def op_3a(register):
+def op_3a(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
     register['a'] = mmu.read(hl)
     hl -= 1
@@ -672,14 +673,14 @@ def op_3a(register):
     return 8
 
 
-def op_3b(register):
+def op_3b(register, b, interrupts):
     register['sp'] -= 1
     if register['sp'] < 0:
         register['sp'] += 0x10000
     return 8
 
 
-def op_3c(register):
+def op_3c(register, b, interrupts):
     h = register['a']
     register['a'] += 1
     if register['a'] == 0x0:
@@ -694,7 +695,7 @@ def op_3c(register):
     return 4
 
     
-def op_3d(register):
+def op_3d(register, b, interrupts):
     h = register['a']
     register['a'] -= 1
     register['f'] = 0x40
@@ -708,12 +709,12 @@ def op_3d(register):
     return 4
 
 
-def op_3e(register, b1):
-    register['a'] = b1
+def op_3e(register, b, interrupts):
+    register['a'] = b[1]
     return 8
 
 
-def op_3f(register):
+def op_3f(register, b, interrupts):
     register['f'] &= 0x9f
     if register['f'] & 0x10:
         register['f'] &= 0xef
@@ -722,340 +723,340 @@ def op_3f(register):
     return 4
 
 
-def op_40(register):
+def op_40(register, b, interrupts):
     register['b'] = register['b']
     return 4
 
 
-def op_41(register):
+def op_41(register, b, interrupts):
     register['b'] = register['c']
     return 4
 
 
-def op_42(register):
+def op_42(register, b, interrupts):
     register['b'] = register['d']
     return 4
 
 
-def op_43(register):
+def op_43(register, b, interrupts):
     register['b'] = register['b']
     return 4
 
 
-def op_44(register):
+def op_44(register, b, interrupts):
     register['b'] = register['h']
     return 4
 
 
-def op_45(register):
+def op_45(register, b, interrupts):
     register['b'] = register['l']
     return 4
 
 
-def op_46(register):
+def op_46(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     register['b'] = mmu.read(hl)
     return 8
 
 
-def op_47(register):
+def op_47(register, b, interrupts):
     register['b'] = register['a']
     return 4
 
 
-def op_48(register):
+def op_48(register, b, interrupts):
     register['c'] = register['b']
     return 4
 
 
-def op_49(register):
+def op_49(register, b, interrupts):
     register['c'] = register['c']
     return 4
 
 
-def op_4a(register):
+def op_4a(register, b, interrupts):
     register['c'] = register['d']
     return 4
 
 
-def op_4b(register):
+def op_4b(register, b, interrupts):
     register['c'] = register['e']
     return 4
 
 
-def op_4c(register):
+def op_4c(register, b, interrupts):
     register['c'] = register['h']
     return 4
 
 
-def op_4d(register):
+def op_4d(register, b, interrupts):
     register['c'] = register['l']
     return 4
 
 
-def op_4e(register):
+def op_4e(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     register['c'] = mmu.read(hl)
     return 4
 
 
-def op_4f(register):
+def op_4f(register, b, interrupts):
     register['c'] = register['a']
     return 4
 
 
-def op_50(register):
+def op_50(register, b, interrupts):
     register['d'] = register['b']
     return 4
 
 
-def op_51(register):
+def op_51(register, b, interrupts):
     register['d'] = register['c']
     return 4
 
 
-def op_52(register):
+def op_52(register, b, interrupts):
     register['d'] = register['d']
     return 4
 
 
-def op_53(register):
+def op_53(register, b, interrupts):
     register['d'] = register['e']
     return 4
 
 
-def op_54(register):
+def op_54(register, b, interrupts):
     register['d'] = register['h']
     return 4
 
 
-def op_55(register):
+def op_55(register, b, interrupts):
     register['d'] = register['l']
     return 4
     
 
-def op_56(register):
+def op_56(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     register['d'] = mmu.read(hl)
     return 4
 
 
-def op_57(register):
+def op_57(register, b, interrupts):
     register['d'] = register['a']
     return 4
 
 
-def op_58(register):
+def op_58(register, b, interrupts):
     register['e'] = register['b']
     return 4
 
 
-def op_59(register):
+def op_59(register, b, interrupts):
     register['e'] = register['c']
     return 4
 
 
-def op_5a(register):
+def op_5a(register, b, interrupts):
     register['e'] = register['d']
     return 4
 
 
-def op_5b(register):
+def op_5b(register, b, interrupts):
     register['e'] = register['e']
     return 4
 
 
-def op_5c(register):
+def op_5c(register, b, interrupts):
     register['e'] = register['h']
     return 4
 
 
-def op_5d(register):
+def op_5d(register, b, interrupts):
     register['e'] = register['l']
     return 4
 
 
-def op_5e(register):
+def op_5e(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     register['e'] = mmu.read(hl)
     return 4
 
 
-def op_5f(register):
+def op_5f(register, b, interrupts):
     register['e']= register['a']
     return 4
 
 
-def op_60(register):
+def op_60(register, b, interrupts):
     register['h'] = register['b']
     return 4
     
 
-def op_61(register):
+def op_61(register, b, interrupts):
     register['h'] = register['c']
     return 4
     
 
-def op_62(register):
+def op_62(register, b, interrupts):
     register['h'] = register['d']
     return 4
     
 
-def op_63(register):
+def op_63(register, b, interrupts):
     register['h'] = register['e']
     return 4
     
 
-def op_64(register):
+def op_64(register, b, interrupts):
     register['h'] = register['h']
     return 4
     
 
-def op_65(register):
+def op_65(register, b, interrupts):
     register['h'] = register['l']
     return 4
     
 
-def op_66(register):
+def op_66(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     register['h'] = mmu.read(hl)
     return 8
     
 
-def op_67(register):
+def op_67(register, b, interrupts):
     register['h'] = register['a']
     return 4
     
 
-def op_68(register):
+def op_68(register, b, interrupts):
     register['l'] = register['b']
     return 4
     
 
-def op_69(register):
+def op_69(register, b, interrupts):
     register['l'] = register['c']
     return 4
     
 
-def op_6a(register):
+def op_6a(register, b, interrupts):
     register['l'] = register['d']
     return 4
     
 
-def op_6b(register):
+def op_6b(register, b, interrupts):
     register['l'] = register['e']
     return 4
     
 
-def op_6c(register):
+def op_6c(register, b, interrupts):
     register['l'] = register['h']
     return 4
     
 
-def op_6d(register):
+def op_6d(register, b, interrupts):
     register['l'] = register['l']
     return 4
     
 
-def op_6e(register):
+def op_6e(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     register['l'] = mmu.read(hl)
     return 8
     
 
-def op_6f(register):
+def op_6f(register, b, interrupts):
     register['l'] = register['a']
     return 4
 
 
-def op_70(register):
+def op_70(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
-    mmu.write(hl, register['b'])
+    mmu.write(register['clock'], hl, register['b'])
     return 8
 
 
-def op_71(register):
+def op_71(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
-    mmu.write(hl, register['c'])
+    mmu.write(register['clock'], hl, register['c'])
     return 8
 
 
-def op_72(register):
+def op_72(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
-    mmu.write(hl, register['d'])
+    mmu.write(register['clock'], hl, register['d'])
     return 8
 
 
-def op_73(register):
+def op_73(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
-    mmu.write(hl, register['e'])
+    mmu.write(register['clock'], hl, register['e'])
     return 8
 
 
-def op_74(register):
+def op_74(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
-    mmu.write(hl, register['h'])
+    mmu.write(register['clock'], hl, register['h'])
     return 8
     
 
-def op_75(register):
+def op_75(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
-    mmu.write(hl, register['l'])
+    mmu.write(register['clock'], hl, register['l'])
     return 8
 
 
-def op_76 (register):
+def op_76 (register, b, interrupts):
     global run
     run = 0
     return 4
 
-def op_77(register):
+def op_77(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
-    mmu.write(hl, register['a'])
+    mmu.write(register['clock'], hl, register['a'])
     return 8
 
 
-def op_78(register):
+def op_78(register, b, interrupts):
     register['a'] = register['b']
     return 4
 
 
-def op_79(register):
+def op_79(register, b, interrupts):
     register['a'] = register['c']
     return 4
 
 
-def op_7a(register):
+def op_7a(register, b, interrupts):
     register['a'] = register['d']
     return 4
 
 
-def op_7b(register):
+def op_7b(register, b, interrupts):
     register['a'] = register['e']
     return 4
 
-def op_7c(register):
+def op_7c(register, b, interrupts):
     register['a'] = register['h']
     return 4
 
 
-def op_7d(register):
+def op_7d(register, b, interrupts):
     register['a'] = register['l']
     return 4
 
 
-def op_7e(register):
+def op_7e(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     register['a'] = mmu.read(hl)
     return 4
 
 
-def op_7f(register):
+def op_7f(register, b, interrupts):
     register['a'] = register['a']
     return 4
 
 
-def op_80(register):
+def op_80(register, b, interrupts):
     h = register['a']
     register['f'] = 0
     register['a'] += register['b']
@@ -1069,7 +1070,7 @@ def op_80(register):
     return 4
 
 
-def op_81(register):
+def op_81(register, b, interrupts):
     h = register['a']
     register['f'] = 0
     register['a'] += register['c']
@@ -1083,7 +1084,7 @@ def op_81(register):
     return 4
 
 
-def op_82(register):
+def op_82(register, b, interrupts):
     h = register['a']
     register['f'] = 0
     register['a'] += register['d']
@@ -1097,7 +1098,7 @@ def op_82(register):
     return 4
 
 
-def op_83(register):
+def op_83(register, b, interrupts):
     h = register['a']
     register['a'] += register['e']
     if register['a'] > 0xff:
@@ -1111,7 +1112,7 @@ def op_83(register):
     return 4
 
 
-def op_84(register):
+def op_84(register, b, interrupts):
     h = register['a']
     register['a'] += register['h']
     if register['a'] > 0xff:
@@ -1125,7 +1126,7 @@ def op_84(register):
     return 4
     
 
-def op_85(register):
+def op_85(register, b, interrupts):
     h = register['a']
     register['f'] = 0
     register['a'] += register['l']
@@ -1139,7 +1140,7 @@ def op_85(register):
     return 4
 
 
-def op_86(register):
+def op_86(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
     h = mmu.read(hl)
     register['a'] += h
@@ -1156,7 +1157,7 @@ def op_86(register):
 
 
 
-def op_87(register):
+def op_87(register, b, interrupts):
     h = register['a']
     register['a'] += register['a']
     register['f'] = 0
@@ -1170,7 +1171,7 @@ def op_87(register):
     return 4
 
 
-def op_88(register):
+def op_88(register, b, interrupts):
     h = register['a']
     register['a'] += register['b']
     register['f'] = 0
@@ -1184,7 +1185,7 @@ def op_88(register):
     return 4
 
 
-def op_89(register):
+def op_89(register, b, interrupts):
     h = register['a']
     if register['f'] & 0x10:
         register['a'] += 1
@@ -1200,7 +1201,7 @@ def op_89(register):
     return 4
 
 
-def op_8a(register):
+def op_8a(register, b, interrupts):
     h = register['a']
     if register['f'] & 0x10:
         register['a'] += 1
@@ -1216,7 +1217,7 @@ def op_8a(register):
     return 4
 
 
-def op_8b(register):
+def op_8b(register, b, interrupts):
     h = register['a']
     if register['f'] & 0x10:
         register['a'] += 1
@@ -1232,7 +1233,7 @@ def op_8b(register):
     return 4
 
 
-def op_8c(register):
+def op_8c(register, b, interrupts):
     h = register['a']
     if register['f'] & 0x10:
         register['a'] += 1
@@ -1247,7 +1248,7 @@ def op_8c(register):
         register['f'] |= 0x80
     return 4
 
-def op_8d(register):
+def op_8d(register, b, interrupts):
     h = register['a']
     if register['f'] & 0x10:
         register['a'] += 1
@@ -1263,7 +1264,7 @@ def op_8d(register):
     return 4
 
 
-def op_8e(register):
+def op_8e(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     h = register['a']
@@ -1281,7 +1282,7 @@ def op_8e(register):
     return 4
 
 
-def op_8f(register):
+def op_8f(register, b, interrupts):
     h = register['a']
     if register['f'] & 0x10:
         register['a'] += 1
@@ -1297,7 +1298,7 @@ def op_8f(register):
     return 4
     
     
-def op_90(register):
+def op_90(register, b, interrupts):
     h = register['a']
     register['f'] = 0x40
     register['a'] -= register['b']
@@ -1310,7 +1311,7 @@ def op_90(register):
         register['f'] |= 0x20
     return 4
 
-def op_91(register):
+def op_91(register, b, interrupts):
     h = register['a']
     register['f'] = 0x40
     register['a'] -= register['c']
@@ -1324,7 +1325,7 @@ def op_91(register):
     return 4
 
 
-def op_92(register):
+def op_92(register, b, interrupts):
     h = register['a']
     register['f'] = 0x40
     register['a'] -= register['d']
@@ -1338,7 +1339,7 @@ def op_92(register):
     return 4
 
 
-def op_93(register):
+def op_93(register, b, interrupts):
     h = register['a']
     register['f'] = 0x40
     register['a'] -= register['e']
@@ -1352,7 +1353,7 @@ def op_93(register):
     return 4
 
 
-def op_94(register):
+def op_94(register, b, interrupts):
     h = register['a']
     register['f'] = 0x40
     register['a'] -= register['h']
@@ -1366,7 +1367,7 @@ def op_94(register):
     return 4
 
 
-def op_95(register):
+def op_95(register, b, interrupts):
     h = register['a']
     register['f'] = 0x40
     register['a'] -= register['l']
@@ -1380,7 +1381,7 @@ def op_95(register):
     return 4
 
 
-def op_96(register):
+def op_96(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     h = register['a']
@@ -1396,7 +1397,7 @@ def op_96(register):
     return 8
 
 
-def op_97(register):
+def op_97(register, b, interrupts):
     h = register['a']
     register['f'] = 0x40
     register['a'] -= register['a']
@@ -1410,7 +1411,7 @@ def op_97(register):
     return 4
 
 
-def op_98(register):
+def op_98(register, b, interrupts):
     h = register['a']
     register['a'] -= register['b']
     if register['f'] & 0x10:
@@ -1426,7 +1427,7 @@ def op_98(register):
     return 4
 
 
-def op_99(register):
+def op_99(register, b, interrupts):
     h = register['a']
     register['a'] -= register['c']
     if register['f'] & 0x10:
@@ -1442,7 +1443,7 @@ def op_99(register):
     return 4
 
 
-def op_9a(register):
+def op_9a(register, b, interrupts):
     h = register['a']
     register['a'] -= register['d']
     if register['f'] & 0x10:
@@ -1458,7 +1459,7 @@ def op_9a(register):
     return 4
 
 
-def op_9b(register):
+def op_9b(register, b, interrupts):
     h = register['a']
     register['a'] -= register['e']
     if register['f'] & 0x10:
@@ -1474,7 +1475,7 @@ def op_9b(register):
     return 4
 
 
-def op_9c(register):
+def op_9c(register, b, interrupts):
     h = register['a']
     register['a'] -= register['h']
     if register['f'] & 0x10:
@@ -1490,7 +1491,7 @@ def op_9c(register):
     return 4
 
 
-def op_9d(register):
+def op_9d(register, b, interrupts):
     h = register['a']
     register['a'] -= register['l']
     if register['f'] & 0x10:
@@ -1506,7 +1507,7 @@ def op_9d(register):
     return 4
 
 
-def op_9e(register):
+def op_9e(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     h = register['a']
@@ -1524,7 +1525,7 @@ def op_9e(register):
     return 8
 
 
-def op_9f(register):
+def op_9f(register, b, interrupts):
     h = register['a']
     register['a'] -= register['a']
     if register['f'] & 0x10:
@@ -1540,7 +1541,7 @@ def op_9f(register):
     return 4
 
 
-def op_a0(register):
+def op_a0(register, b, interrupts):
     register['a'] &= register['b']
     register['f'] = 0x20
     if register['a'] == 0:
@@ -1548,7 +1549,7 @@ def op_a0(register):
     return 4
 
 
-def op_a1(register):
+def op_a1(register, b, interrupts):
     register['a'] &= register['c']
     register['f'] = 0x20
     if register['a'] == 0:
@@ -1556,7 +1557,7 @@ def op_a1(register):
     return 4
 
 
-def op_a2(register):
+def op_a2(register, b, interrupts):
     register['a'] &= register['d']
     register['f'] = 0x20
     if register['a'] == 0:
@@ -1564,7 +1565,7 @@ def op_a2(register):
     return 4
 
 
-def op_a3(register):
+def op_a3(register, b, interrupts):
     register['a'] &= register['e']
     register['f'] = 0x20
     if register['a'] == 0:
@@ -1572,7 +1573,7 @@ def op_a3(register):
     return 4
 
 
-def op_a4(register):
+def op_a4(register, b, interrupts):
     register['a'] &= register['h']
     register['f'] = 0x20
     if register['a'] == 0:
@@ -1580,7 +1581,7 @@ def op_a4(register):
     return 4
 
 
-def op_a5(register):
+def op_a5(register, b, interrupts):
     register['a'] &= register['l']
     register['f'] = 0x20
     if register['a'] == 0:
@@ -1588,7 +1589,7 @@ def op_a5(register):
     return 4
 
 
-def op_a6(register):
+def op_a6(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     register['a'] &= temp
@@ -1598,7 +1599,7 @@ def op_a6(register):
     return 4
 
 
-def op_a7(register):
+def op_a7(register, b, interrupts):
     register['a'] &= register['a']
     register['f'] = 0x20
     if register['a'] == 0:
@@ -1606,7 +1607,7 @@ def op_a7(register):
     return 4
 
 
-def op_a8(register):
+def op_a8(register, b, interrupts):
     register['a'] ^= register['b']
     register['f'] = 0
     if register['a'] == 0:
@@ -1614,7 +1615,7 @@ def op_a8(register):
     return 4
 
 
-def op_a9(register):
+def op_a9(register, b, interrupts):
     register['a'] ^= register['c']
     register['f'] = 0
     if register['a'] == 0:
@@ -1622,7 +1623,7 @@ def op_a9(register):
     return 4
 
 
-def op_aa(register):
+def op_aa(register, b, interrupts):
     register['a'] ^= register['d']
     register['f'] = 0
     if register['a'] == 0:
@@ -1630,7 +1631,7 @@ def op_aa(register):
     return 4
 
 
-def op_ab(register):
+def op_ab(register, b, interrupts):
     register['a'] ^= register['e']
     register['f'] = 0
     if register['a'] == 0:
@@ -1638,7 +1639,7 @@ def op_ab(register):
     return 4
 
 
-def op_ac(register):
+def op_ac(register, b, interrupts):
     register['a'] ^= register['h']
     register['f'] = 0
     if register['a'] == 0:
@@ -1646,7 +1647,7 @@ def op_ac(register):
     return 4
 
 
-def op_ad(register):
+def op_ad(register, b, interrupts):
     register['a'] ^= register['l']
     register['f'] = 0
     if register['a'] == 0:
@@ -1654,7 +1655,7 @@ def op_ad(register):
     return 4
 
 
-def op_ae(register):
+def op_ae(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     register['a'] ^= temp
@@ -1664,7 +1665,7 @@ def op_ae(register):
     return 4
  
 
-def op_af(register):
+def op_af(register, b, interrupts):
     register['a'] ^= register['a']
     register['f'] = 0
     if register['a'] == 0:
@@ -1672,7 +1673,7 @@ def op_af(register):
     return 4
 
 
-def op_b0(register):
+def op_b0(register, b, interrupts):
     register['a'] |= register['b']
     if register['a'] == 0:
         register['f'] = 0x80
@@ -1681,7 +1682,7 @@ def op_b0(register):
     return 4
 
 
-def op_b1(register):
+def op_b1(register, b, interrupts):
     register['a'] |= register['c']
     if register['a'] == 0:
         register['f'] = 0x80
@@ -1690,7 +1691,7 @@ def op_b1(register):
     return 4
 
 
-def op_b2(register):
+def op_b2(register, b, interrupts):
     register['a'] |= register['d']
     if register['a'] == 0:
         register['f'] = 0x80
@@ -1699,7 +1700,7 @@ def op_b2(register):
     return 4
 
 
-def op_b3(register):
+def op_b3(register, b, interrupts):
     register['a'] |= register['e']
     if register['a'] == 0:
         register['f'] = 0x80
@@ -1708,7 +1709,7 @@ def op_b3(register):
     return 4
 
 
-def op_b4(register):
+def op_b4(register, b, interrupts):
     register['a'] |= register['d']
     if register['a'] == 0:
         register['f'] = 0x80
@@ -1717,7 +1718,7 @@ def op_b4(register):
     return 4
 
 
-def op_b5(register):
+def op_b5(register, b, interrupts):
     register['a'] |= register['e']
     if register['a'] == 0:
         register['f'] = 0x80
@@ -1726,7 +1727,7 @@ def op_b5(register):
     return 4
 
 
-def op_b6(register):
+def op_b6(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     temp = mmu.read(hl)
     register['a'] |= temp
@@ -1737,7 +1738,7 @@ def op_b6(register):
     return 4
 
 
-def op_b7(register):
+def op_b7(register, b, interrupts):
     register['a'] |= register['a']
     if register['a'] == 0:
         register['f'] = 0x80
@@ -1746,7 +1747,7 @@ def op_b7(register):
     return 4
 
 
-def op_b8(register):
+def op_b8(register, b, interrupts):
     register['f'] = 0
     if register['a'] - register['b'] == 0:
         register['f'] |= 0x80
@@ -1760,7 +1761,7 @@ def op_b8(register):
     return 8
 
 
-def op_b9(register):
+def op_b9(register, b, interrupts):
     register['f'] = 0
     if register['a'] - register['c'] == 0:
         register['f'] |= 0x80
@@ -1774,7 +1775,7 @@ def op_b9(register):
     return 8
 
 
-def op_ba(register):
+def op_ba(register, b, interrupts):
     register['f'] = 0
     if register['a'] - register['d'] == 0:
         register['f'] |= 0x80
@@ -1788,7 +1789,7 @@ def op_ba(register):
     return 8
 
 
-def op_bb(register):
+def op_bb(register, b, interrupts):
     register['f'] = 0
     if register['a'] - register['e'] == 0:
         register['f'] |= 0x80
@@ -1802,7 +1803,7 @@ def op_bb(register):
     return 8
 
 
-def op_bc(register):
+def op_bc(register, b, interrupts):
     register['f'] = 0
     if register['a'] - register['h'] == 0:
         register['f'] |= 0x80
@@ -1816,7 +1817,7 @@ def op_bc(register):
     return 8
 
 
-def op_bd(register):
+def op_bd(register, b, interrupts):
     register['f'] = 0
     if register['a'] - register['l'] == 0:
         register['f'] |= 0x80
@@ -1830,7 +1831,7 @@ def op_bd(register):
     return 8
 
 
-def op_be(register):
+def op_be(register, b, interrupts):
     register['f'] = 0
     hl = (register['h'] << 8) | register['l']
     if register['a'] - mmu.read(hl) == 0:
@@ -1845,7 +1846,7 @@ def op_be(register):
     return 8
 
 
-def op_bf(register):
+def op_bf(register, b, interrupts):
     register['f'] = 0
     if register['a'] - register['a'] == 0:
         register['f'] |= 0x80
@@ -1859,7 +1860,7 @@ def op_bf(register):
     return 8
 
 
-def op_c0(register):
+def op_c0(register, b, interrupts):
     if register['f'] & 0x80:
         return 8
     else:
@@ -1869,47 +1870,47 @@ def op_c0(register):
         return 20
         
     
-def op_c1(register):
+def op_c1(register, b, interrupts):
     register['c'] = mmu.read(register['sp'])
     register['b'] = mmu.read(register['sp'] + 1)
     register['sp'] += 2                         
     return 12
 
 
-def op_c2(register, b1, b2):
+def op_c2(register, b, interrupts):
     if register['f'] & 0x80:
         return 12
     else:
-        register['pc'] = b2 << 8 | b1
+        register['pc'] = b[2] << 8 | b[1]
         return 16
 
 
-def op_c3(register, b1, b2):
-    register['pc'] = b2 << 8 | b1
+def op_c3(register, b, interrupts):
+    register['pc'] = b[2] << 8 | b[1]
     return 16
 
 
-def op_c4(register, b1, b2):
+def op_c4(register, b, interrupts):
     if register['f'] & 0x80:
         return 12
     else:
-        mmu.write(register['sp'] - 1, register['pc'] >> 8)
-        mmu.write(register['sp'] - 2, register['pc'] & 0xff)
-        register['pc'] = (b2 << 8) + b1
+        mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+        mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
+        register['pc'] = (b[2] << 8) + b[1]
         register['sp'] -= 2
         return 24
 
 
-def op_c5(register):
-    mmu.write(register['sp'] - 1, register['b'])
-    mmu.write(register['sp'] - 2, register['c'])
+def op_c5(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['b'])
+    mmu.write(register['clock'], register['sp'] - 2, register['c'])
     register['sp'] -= 2
     return 16
 
 
-def op_c6(register, b1):
+def op_c6(register, b, interrupts):
     h = register['a']
-    register['a'] += b1
+    register['a'] += b[1]
     if register['a'] > 0xff:
         register['f'] |= 0x10
     register['a'] &= 0xff
@@ -1921,15 +1922,15 @@ def op_c6(register, b1):
     return 4
 
 
-def op_c7(register):
-    mmu.write(register['sp'] - 1, register['pc'] >> 8)
-    mmu.write(register['sp'] - 2, register['pc'] & 0xff)
+def op_c7(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+    mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
     register['sp'] -= 2
     register['pc'] = 0
     return 16
 
 
-def op_c8(register):
+def op_c8(register, b, interrupts):
     if register['f'] & 0x80:
         register['pc'] = mmu.read(register['sp'])
         register['pc'] += (mmu.read(register['sp'] + 1) << 8)
@@ -1939,70 +1940,70 @@ def op_c8(register):
         return 8
         
 
-def op_c9(register):
+def op_c9(register, b, interrupts):
     register['pc'] = mmu.read(register['sp'])
     register['pc'] += (mmu.read(register['sp'] + 1) << 8)
     register['sp'] += 2
     return 16
 
 
-def op_ca(register, b1, b2):
+def op_ca(register, b, interrupts):
     if register['f'] & 0x80:
-        register['pc'] = b2 << 8 | b1
+        register['pc'] = b[2] << 8 | b[1]
         return 16
     else:
         return 12
 
 
-def op_cb(register, b1):
-    cb.cb_lookup[int(b1)](register)
+def op_cb(register, b, interrupts):
+    cb.cb_lookup[int(b[1])](register)
     return 8
 
 
-def op_cc(register, b1, b2):
+def op_cc(register, b, interrupts):
     if register['f'] & 0x80:
-        mmu.write(register['sp'] - 1, register['pc'] >> 8)
-        mmu.write(register['sp'] - 2, register['pc'] & 0xff)
-        register['pc'] = (b2 << 8) + b1
+        mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+        mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
+        register['pc'] = (b[2] << 8) + b[1]
         register['sp'] -= 2
         return 24
     else:
         return 12
 
 
-def op_cd(register, b1, b2):
-    mmu.write(register['sp'] - 1, register['pc'] >> 8)
-    mmu.write(register['sp'] - 2, register['pc'] & 0xff)
-    register['pc'] = (b2 << 8) + b1
+def op_cd(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+    mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
+    register['pc'] = (b[2] << 8) + b[1]
     register['sp'] -= 2
     return 24
 
 
-def op_ce(register, b1):
+def op_ce(register, b, interrupts):
     h = register['a']
     if register['f'] & 0x10:
         register['a'] += 1
-    register['a'] += b1
+    register['a'] += b[1]
     register['f'] = 0
     if register['a'] > 0xff:
         register['f'] |= 0x10
     register['a'] &= 0xff
-    if (h & 0xf) + (b1 & 0xf) > 0xf:
+    if (h & 0xf) + (b[1] & 0xf) > 0xf:
         register['f'] |= 0x20
     if register['a'] == 0:
         register['f'] |= 0x80
     return 4
 
 
-def op_cf(register):
-    mmu.write(register['sp'] - 1, register['pc'] >> 8)
-    mmu.write(register['sp'] - 2, register['pc'] & 0xff)
+def op_cf(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+    mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
     register['sp'] -= 2
     register['pc'] = 0x8
     return 16
 
 
-def op_d0(register):
+def op_d0(register, b, interrupts):
     if register['f'] & 0x10:
         return 8
     else:
@@ -2012,62 +2013,62 @@ def op_d0(register):
         return 20
 
 
-def op_d1(register):
+def op_d1(register, b, interrupts):
     register['e'] = mmu.read(register['sp'])
     register['d'] = mmu.read(register['sp'] + 1)
     register['sp'] += 2                         
     return 12
 
 
-def op_d2(register, b1, b2):
+def op_d2(register, b, interrupts):
     if register['f'] & 0x10:
         return 12
     else:
-        register['pc'] = b2 << 8 | b1
+        register['pc'] = b[2] << 8 | b[1]
         return 16
 
 
-def op_d4(register, b1, b2):
+def op_d4(register, b, interrupts):
     if register['f'] & 0x10:
         return 12
     else:
-        mmu.write(register['sp'] - 1, register['pc'] >> 8)
-        mmu.write(register['sp'] - 2, register['pc'] & 0xff)
-        register['pc'] = (b2 << 8) + b1
+        mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+        mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
+        register['pc'] = (b[2] << 8) + b[1]
         register['sp'] -= 2
         return 24
 
 
-def op_d5(register):
-    mmu.write(register['sp'] - 1, register['d'])
-    mmu.write(register['sp'] - 2, register['e'])
+def op_d5(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['d'])
+    mmu.write(register['clock'], register['sp'] - 2, register['e'])
     register['sp'] -= 2
     return 16
 
 
-def op_d6(register, b1):
+def op_d6(register, b, interrupts):
     h = register['a']
     register['f'] = 0x40
-    register['a'] -= b1
+    register['a'] -= b[1]
     if register['a'] < 0:
         register['f'] |= 0x10
         register['a'] += 0x100
     elif register['a'] == 0:
         register['f'] |= 0x80
-    if (h & 0xf) - (b1 & 0xf) < 0:
+    if (h & 0xf) - (b[1] & 0xf) < 0:
         register['f'] |= 0x20
     return 4
 
 
-def op_d7(register):
-    mmu.write(register['sp'] - 1, register['pc'] >> 8)
-    mmu.write(register['sp'] - 2, register['pc'] & 0xff)
+def op_d7(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+    mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
     register['sp'] -= 2
     register['pc'] = 0x10
     return 16
 
 
-def op_d8(register):
+def op_d8(register, b, interrupts):
     if register['f'] & 0x10:
         register['pc'] = mmu.read(register['sp'])
         register['pc'] += (mmu.read(register['sp'] + 1) << 8)
@@ -2077,36 +2078,36 @@ def op_d8(register):
         return 8
 
 
-def op_d9(register):
+def op_d9(register, b, interrupts):
     register['pc'] = mmu.read(register['sp'])
     register['pc'] += (mmu.read(register['sp'] + 1) << 8)
     register['sp'] += 2
-    interrupts.EI = 1
+    interrupts[0] = 1
     return 16
 
 
-def op_da(register, b1, b2):
+def op_da(register, b, interrupts):
     if register['f'] & 0x10:
-        register['pc'] = b2 << 8 | b1
+        register['pc'] = b[2] << 8 | b[1]
         return 16
     else:
         return 12
 
 
-def op_dc(register, b1, b2):
+def op_dc(register, b, interrupts):
     if register['f'] & 0x10:
-        mmu.write(register['sp'] - 1, register['pc'] >> 8)
-        mmu.write(register['sp'] - 2, register['pc'] & 0xff)
-        register['pc'] = (b2 << 8) + b1
+        mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+        mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
+        register['pc'] = (b[2] << 8) + b[1]
         register['sp'] -= 2
         return 24
     else:
         return 12
 
 
-def op_de(register, b1):
+def op_de(register, b, interrupts):
     h = register['a']
-    register['a'] -= b1
+    register['a'] -= b[1]
     if register['f'] & 0x10:
         register['a'] -= 1
     register['f'] = 0x40
@@ -2115,47 +2116,47 @@ def op_de(register, b1):
         register['a'] += 0x100
     elif register['a'] == 0:
         register['f'] |= 0x80
-    if (h & 0xf) - (b1 & 0xf) < 0:
+    if (h & 0xf) - (b[1] & 0xf) < 0:
         register['f'] |= 0x20
     return 4
 
 
-def op_df(register):
-    mmu.write(register['sp'] - 1, register['pc'] >> 8)
-    mmu.write(register['sp'] - 2, register['pc'] & 0xff)
+def op_df(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+    mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
     register['sp'] -= 2
     register['pc'] = 0x18
     return 16
 
 
-def op_e0(register, b1):
-    b1 += 0xff00
-    mmu.write(b1, register['a'])
+def op_e0(register, b, interrupts):
+    b[1] += 0xff00
+    mmu.write(register['clock'], b[1], register['a'])
     return 12
 
 
-def op_e1(register):
+def op_e1(register, b, interrupts):
     register['l'] = mmu.read(register['sp'])
     register['h'] = mmu.read(register['sp'] + 1)
     register['sp'] += 2                         
     return 12
 
 
-def op_e2(register):
+def op_e2(register, b, interrupts):
     temp = register['c'] + 0xff00
-    mmu.write(temp, register['a'])
+    mmu.write(register['clock'], temp, register['a'])
     return 8
 
 
-def op_e5(register):
-    mmu.write(register['sp'] - 1, register['h'])
-    mmu.write(register['sp'] - 2, register['l'])
+def op_e5(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['h'])
+    mmu.write(register['clock'], register['sp'] - 2, register['l'])
     register['sp'] -= 2
     return 16
 
 
-def op_e6(register, b1):
-    register['a'] &= b1
+def op_e6(register, b, interrupts):
+    register['a'] &= b[1]
     if register['a'] == 0:
         register['f'] = 0xa0
     else:
@@ -2163,89 +2164,89 @@ def op_e6(register, b1):
     return 8
 
 
-def op_e7(register):
-    mmu.write(register['sp'] - 1, register['pc'] >> 8)
-    mmu.write(register['sp'] - 2, register['pc'] & 0xff)
+def op_e7(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+    mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
     register['sp'] -= 2
     register['pc'] = 0x20
     return 16
 
 
-def op_e8(register, b1):
-    if b1 > 127:
-        b1 = ~(255 - b1)
+def op_e8(register, b, interrupts):
+    if b[1] > 127:
+        b[1] = ~(255 - b[1])
     h = register['sp']
     if (h & 0xf) + (register['sp'] & 0xf) > 0xf:
         register['f'] = 0x10
     else :
         register['f'] = 0
-        register['sp'] += b1
+        register['sp'] += b[1]
         if (register['sp'] & 0xff) + h > 0xff:
             register['f'] |= 0x80
     return 16
     
     
-def op_e9(register):
+def op_e9(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     register['pc'] = hl
     return 4
 
 
-def op_ea(register, b1, b2):
-    mmu.write((b2 << 8) + b1, register['a'])
+def op_ea(register, b, interrupts):
+    mmu.write(register['clock'], (b[2] << 8) + b[1], register['a'])
     return 16
 
 
-def op_ee(register, b1):
-    register['a'] ^= b1
+def op_ee(register, b, interrupts):
+    register['a'] ^= b[1]
     register['f'] = 0
     if register['a'] == 0:
         register['f'] = 0x80
     return 8
 
 
-def op_ef(register):
-    mmu.write(register['sp'] - 1, register['pc'] >> 8)
-    mmu.write(register['sp'] - 2, register['pc'] & 0xff)
+def op_ef(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+    mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
     register['sp'] -= 2
     register['pc'] = 0x28
     return 16
     
 
 
-def op_f0(register, b1):
-    b1 += 0xff00
-    register['a'] = mmu.read(b1)
+def op_f0(register, b, interrupts):
+    b[1] += 0xff00
+    register['a'] = mmu.read(b[1])
     return 12
 
 
-def op_f1(register):
+def op_f1(register, b, interrupts):
     register['f'] = mmu.read(register['sp'])
     register['a'] = mmu.read(register['sp'] + 1)
     register['sp'] += 2                         
     return 12
 
 
-def op_f2(register):
+def op_f2(register, b, interrupts):
     temp = register['c'] + 0xff00
     register['a'] = mmu.read(temp)
     return 8
 
 
-def op_f3(register):
-    interrupts.DI = 1
+def op_f3(register, b, interrupts):
+    interrupts[1] = 1
     return 4
 
 
-def op_f5(register):
-    mmu.write(register['sp'] - 1, register['a'])
-    mmu.write(register['sp'] - 2, register['f'])
+def op_f5(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['a'])
+    mmu.write(register['clock'], register['sp'] - 2, register['f'])
     register['sp'] -= 2
     return 16
 
 
-def op_f6(register, b1):
-    register['a'] |= b1
+def op_f6(register, b, interrupts):
+    register['a'] |= b[1]
     if register['a'] == 0:
         register['f'] = 0x80
     else:
@@ -2253,18 +2254,18 @@ def op_f6(register, b1):
     return 8
 
 
-def op_f7(register):
-    mmu.write(register['sp'] - 1, register['pc'] >> 8)
-    mmu.write(register['sp'] - 2, register['pc'] & 0xff)
+def op_f7(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
+    mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
     register['sp'] -= 2
     register['pc'] = 0x30
     return 16
 
 
-def op_f8(register, b1):
-    if b1 > 127:
-            temp = ~(255 - b1)
-    hl = register['sp'] + b1
+def op_f8(register, b, interrupts):
+    if b[1] > 127:
+            temp = ~(255 - b[1])
+    hl = register['sp'] + b[1]
     register['f'] = 0
     if hl > 0xffff:
         register['f'] |= 0x10
@@ -2275,41 +2276,41 @@ def op_f8(register, b1):
     hl &= 0xffff
     register['h'] = hl >> 8
     register['l'] = hl & 0xff
-    temp = (register['sp'] &  0xf00) + (b1 & 0xf00)
+    temp = (register['sp'] &  0xf00) + (b[1] & 0xf00)
     if temp > 0xf | temp < 0:
         register['f'] |= 0x20
     return 12
 
 
-def op_f9(register):
+def op_f9(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     register['sp'] = hl
     return 8
     
 
-def op_fa(register, b1, b2):
-    register['a'] = mmu.read(b2 << 8 | b1)
+def op_fa(register, b, interrupts):
+    register['a'] = mmu.read(b[2] << 8 | b[1])
     return 16
 
 
-def op_fb(register):
-    interrupts.EI = 1
+def op_fb(register, b, interrupts):
+    interrupts[0] = 1
     return 4
 
 
-def op_fe(register, b1):
+def op_fe(register, b, interrupts):
     register['f'] = 0
-    if register['a'] - b1 == 0:
+    if register['a'] - b[1] == 0:
         register['f'] |= 0x80
     register['f'] |= 0x40
-    if (register['a'] & 0xf) - (b1 & 0xf) < 0:
+    if (register['a'] & 0xf) - (b[1] & 0xf) < 0:
         register['f'] |= 0x20
-    if register['a'] < b1:
+    if register['a'] < b[1]:
         register['f'] |= 0x10
     return 8
 
-def op_ff(register):
-    mmu.write(register['sp'] - 1, register['pc'] >> 8)
+def op_ff(register, b, interrupts):
+    mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
     mmu.write(register['sp'] - 2, register['pc'] & 0xff)
     register['sp'] -= 2
     register['pc'] = 0x38

@@ -3,22 +3,11 @@ level = 0
 l = open('log.txt', 'w')
 
 
-def debug_log(l, log, b0, b1, b2, register):
-    if l == 1:
-        log.write(hex(b0))
-        log.write('\n')
-    elif l == 2:
-        log.write(hex(b0))
+def debug_log(l, log, b, register):
+    for i in range(l):
+        log.write(hex(b[i]))
         log.write(' ')
-        log.write(hex(b1))
-        log.write('\n')
-    else:
-        log.write(hex(b0))
-        log.write(' ')
-        log.write(hex(b1))
-        log.write(' ')
-        log.write(hex(b2))
-        log.write('\n')
+    log.write('\n')
     log.write('a:')
     log.write(str(hex(register['a'])))
     log.write(' ')

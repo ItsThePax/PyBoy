@@ -1,4 +1,3 @@
-import cpu
 import debug
 import random
 
@@ -57,18 +56,15 @@ def get_controls():
        return memory[0xff00]
 
 
+
 def read(addr):
-    if cartrage_type == 0:
-        return read_mc0(addr)
-    elif 0xf <= cartrage_type < 0x14:
-        return read_mc3(addr)
+    global cartrage_type
+    return mc_read_mapping[cartrage_type](addr)
 
 
-def write(addr, value):
-    if cartrage_type == 0:
-        return write_mc0(addr, value)
-    elif 0xf <= cartrage_type < 0x14:
-        return write_mc3(addr, value)
+def write(addr, value, reg):
+    global cartrage_type
+    return mc_write_mapping[cartrage_type](addr, value, reg)
     
 
 def read_mc0(addr):
@@ -114,10 +110,10 @@ def read_mc3(addr):
 def do_dma(addr):
     global memory
     for i in range(0xA0):
-        write(0xfe00 + i, read((addr * 0x100) + i))
+        write(0, 0xfe00 + i, read((addr * 0x100) + i))
         
 
-def write_mc0(addr, value):
+def write_mc0(clock, addr, value):
     global in_bios
     if 0x8000 <= addr < 0xa000:
         memory[addr] = value
@@ -139,11 +135,11 @@ def write_mc0(addr, value):
         elif addr == 0xff40:
             if memory[0xff40] & ~(1 << 7):
                 if value & (1 << 7):
-                    cpu.reg['clock'] = 0
+                    clock = 0
             memory[addr] = value
         elif addr == 0xff44:
             memory[addr] = 0
-            cpu.reg['clock'] = 0
+            clock = 0
         elif addr == 0xff46:
             do_dma(value)
         elif addr == 0xff50:
@@ -152,7 +148,7 @@ def write_mc0(addr, value):
             memory[addr] = value
 
 
-def write_mc3(addr, value):
+def write_mc3(clock, addr, value):
     global in_bios, write_protect, rom_bank, ram_bank
     if 0 <= addr < 0x2000:
         if value == 0x0a:
@@ -185,11 +181,11 @@ def write_mc3(addr, value):
         elif addr == 0xff40:
             if memory[0xff40] & (1 << 7):
                 if value & (1 << 7):
-                    cpu.reg['clock'] = 0
+                    clock = 0
             memory[addr] = value
         elif addr == 0xff44:
             memory[addr] = 0
-            cpu.reg['clock'] = 0
+            clock = 0
         elif addr == 0xff46:
             do_dma(value)
         elif addr == 0xff50:
@@ -199,6 +195,7 @@ def write_mc3(addr, value):
 
 
 
-
+mc_read_mapping = [read_mc0, None, None, read_mc3]
+mc_write_mapping = [write_mc0, None, None, write_mc3]
 
         

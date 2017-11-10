@@ -169,9 +169,9 @@ def draw_screen(s):
 
 
   
-def do_gpu(screen):
+def do_gpu(screen, reg):
     global old_clock, new_clock, fpsClock, t0, t1, t2, t3, frame
-    new_clock = cpu.reg['clock']
+    new_clock = reg['clock']
     cpu.mmu.memory[0xff44] = int(new_clock / 456)
     if cpu.mmu.memory[0xff40] & 0x80:
         if cpu.mmu.memory[0xff44] < 144:
@@ -204,7 +204,7 @@ def do_gpu(screen):
                 t3 = time.time()
                 cpu.mmu.memory[0xff0f] |= 0x1
     else:
-        cpu.reg['clock'] = 0
+        reg['clock'] = 0
         cpu.mmu.memory[0xff41] = 0x3
             
             

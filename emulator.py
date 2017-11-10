@@ -9,42 +9,31 @@ import pygame
 
 
 
-def do_cpu():
-    global last_instruction
+
+
+def do_cpu(reg, interrupts):
     b = [0, 0, 0]
-    b0 = cpu.mmu.read(cpu.reg['pc'])
-    length = cpu.length_lookup[cpu.mmu.read(cpu.reg['pc'])]
+    length = cpu.length_lookup[cpu.mmu.read(reg['pc'])]
     for i in range(length):
-        b[i] = cpu.mmu.read(cpu.reg['pc'] + i)
-    last_instruction = cpu.reg['pc']
+        b[i] = cpu.mmu.read(reg['pc'] + i)
     if debug.level > 0:
         debug.l.write('\nAt address: ')
-        debug.l.write(hex(cpu.reg['pc']))
+        debug.l.write(hex(reg['pc']))
         debug.l.write('\n')
-    cpu.reg['pc'] += length
-    if length == 1:
-        clock = cpu.opcode_lookup[int(b[0])](cpu.reg)
-    elif length == 2:
-        b1 = cpu.mmu.read(cpu.reg['pc'] + 1)
-        clock = cpu.opcode_lookup[int(b[0])](cpu.reg, b[1])
-    else:
-        b1 = cpu.mmu.read(cpu.reg['pc'] + 1)
-        b2 = cpu.mmu.read(cpu.reg['pc'] + 2)
-        clock = cpu.opcode_lookup[int(b[0])](cpu.reg, b[1], b[2])
-    if debug.level > 0:
-        debug.debug_log(length, debug.l, b0, b1, b2, cpu.reg)
+        debug.debug_log(length, debug.l, b, reg)
+    reg['pc'] += length
+    clock = cpu.opcode_lookup[int(b[0])](reg, b, interrupts)
     return clock
 
     
-def do_interrupts(run, reg):
-    interrupts.interrupts(run, reg)
+def do_interrupts(run, reg, state):
+    return interrupts.interrupts(run, reg, state)
 
 
-def do_timing(clock):
-    global div, timer
-    cpu.reg['clock'] += clock
-    if cpu.reg['clock'] >= 70224:
-        cpu.reg['clock'] -= 70224
+def do_timing(clock, timer, div, reg):
+    reg['clock'] += clock
+    if reg['clock'] >= 70224:
+        reg['clock'] -= 70224
     div += clock
     if div >= 256:
         div -= 256
@@ -83,6 +72,7 @@ def do_timing(clock):
                 if cpu.mmu.memory[0xff05] >= 256:
                     cpu.mmu.memory[0xff05] -= 256
                     cpu.mmu.memory[0xff0f] |= 0x4
+    return timer, div
 
         
 def get_controls():    
@@ -129,50 +119,45 @@ def main():
     t0, t1 = 0, 0
     screen = pygame.display.set_mode((160, 144))
     start_logging = 0xffff
-    last_instruction = 0
-    global div
-    global timer
     div = 0
     timer = 0
-    boot_loader = 'DMG_ROM.bin'
-    filename = 'Tetris (World).gb'
+    boot_loader = 'DMG_QUICKBOOT.bin'
+    filename = 'pokemon blue.gb'
+    cpu.loadboot(boot_loader)
     cpu.load(filename)
     gpu.frame = 0
-    cpu.loadboot(boot_loader)
+    run = 1
+    global reg
+    reg = {'a': 0, 'f': 0, 'b': 0, 'c': 0, 'd': 0, 'e': 0, 'h': 0, 'l': 0, 'sp': 0, 'pc': 0, 'clock': 0}
+    interrupt_state = [0, 0, 0]
     while 1:
-        if cpu.reg['pc'] == start_logging:
+        if reg['pc'] == start_logging:
             debug.level = 1
-        do_interrupts(cpu.run, cpu.reg)
-        if cpu.run == 1:
-            #try:
-            clock = do_cpu()
-##            except (KeyError, TypeError):
-##                if cpu.mmu.read(last_instruction) == 0xcb:
-##                    print("Need to implement the following *CB* command:")
-##                    print(hex(cpu.mmu.read(last_instruction + 1)))
-##                    if debug.level > 0:
-##                        debug.l.write("Need to implement the following *CB* command:")
-##                        debug.l.write(str(hex(cpu.mmu.read(last_instruction + 1))))
-##                        debug.l.write('\n')
-##                else:
-##                    print("Need to implement the following command:")
-##                    print(hex(cpu.mmu.read(last_instruction)))
-##                    if debug.level > 0:
-##                        debug.l.write("Need to implement the following command:")
-##                        debug.l.write(str(hex(cpu.mmu.read(last_instruction))))
-##                        debug.l.write('\n')
-##                break
-            if cpu.mmu.memory[0xff40] & 0x80:
-                if debug.level > 0:
-                    debug.l.write('At line: {0}\nIn rom bank:{1}\n' .format(cpu.mmu.memory[0xff44], hex(cpu.mmu.rom_bank)))
-                    
+        run = do_interrupts(run, reg, interrupt_state)
+        if run == 1:
+            try:
+                clock = do_cpu(reg, interrupt_state)
+            except (KeyError, TypeError):
+                if cpu.mmu.read(last_instruction) == 0xcb:
+                    print("Need to implement the following *CB* command:")
+                    print(hex(cpu.mmu.read(last_instruction + 1)))
+                    if debug.level > 0:
+                        debug.l.write("Need to implement the following *CB* command:")
+                        debug.l.write(str(hex(cpu.mmu.read(last_instruction + 1))))
+                        debug.l.write('\n')
+                else:
+                    print("Need to implement the following command:")
+                    print(hex(cpu.mmu.read(last_instruction)))
+                    if debug.level > 0:
+                        debug.l.write("Need to implement the following command:")
+                        debug.l.write(str(hex(cpu.mmu.read(last_instruction))))
+                        debug.l.write('\n')
+                break
         else:
             clock = 4
-        do_timing(clock)
-        gpu.do_gpu(screen)
+        timer, div = do_timing(clock, timer, div, reg)
+        gpu.do_gpu(screen, reg)
         get_controls()
-        
-         
     print("The PC is currently at:")
     print(hex(last_instruction))
     print(cpu.mmu.rom_bank)
