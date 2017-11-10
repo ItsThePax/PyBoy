@@ -61,9 +61,7 @@ def draw_screen(s):
         else:
             winy = 144
             winx = 167
-    
     #bg
-        
         for j in range(winy):
             tile_y = int(((scrolly + j) % 256) / 8)
             pixel_y = (scrolly + j) % 8
@@ -86,14 +84,12 @@ def draw_screen(s):
                 raw_color = raw_u | raw_l 
                 actual_color = (bg_pallet >> (raw_color * 2)) & 0x3
                 s[i][j] = color[actual_color]
-
-
-    
+                
     #Sprites with priority > 0 
     if cpu.mmu.memory[0xff40] & (1 << 1): #sprites enabled
         if cpu.mmu.memory[0xff40] & (1 << 2):
             #render sprites 8*16 mode
-            dummy_val = 0
+            pass
         else:
             #render sprites 8*8 mode
             for i in range(40):
@@ -190,26 +186,21 @@ def do_gpu(screen):
             elif new_clock % 456 >= 252:
                 if cpu.mmu.memory[0xff41] & 0x3 != 0:
                     cpu.mmu.memory[0xff41] &= 0xfc
+                    
         else :
             if cpu.mmu.memory[0xff41] & 0x3 != 1:
-                #print(frame)
-                frame += 1
                 cpu.mmu.memory[0xff41] &= 0xfc
                 cpu.mmu.memory[0xff41] |= 1
                 sb = pygame.PixelArray(screen)
-                t2 = time.time()
-                #t0 = time.time()
                 if cpu.mmu.memory[0xff40] & (1 << 7):
                     draw_screen(sb)
                     del sb
                 pygame.display.update()
-                #t1 = time.time()
+                t2 = time.time()
                 try:
                     print 1 / (t2 - t3)
                 except:
                     pass
-                #print(t1 - t0)
-                #print('\n')
                 t3 = time.time()
                 cpu.mmu.memory[0xff0f] |= 0x1
     else:

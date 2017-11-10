@@ -95,10 +95,7 @@ def read_mc3(addr):
     if 0 <= addr < 0x8000:
         if 0 <= addr < 256:
             if in_bios == 1:
-                if customboot == 1:
-                    return externalbootloader[addr]
-                else:
-                    return bootloader[addr]
+                return bootloader[addr]
             else:
                 return cart[addr]
         elif 0x4000 <= addr < 0x8000:
