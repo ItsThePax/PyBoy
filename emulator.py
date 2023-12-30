@@ -49,10 +49,11 @@ def do_timing(clock, timer, div, reg):
         timer += clock
         if cpu.mmu.memory[0xff07] & 0x3 == 0:
             if timer >= 1000:
-                cpu.mmu.memory[0xff05] += 1
-                if cpu.mmu.memory[0xff05] >= 256:
-                    cpu.mmu.memory[0xff05] -= 256
+                if cpu.mmu.memory[0xff05] == 255:
+                    cpu.mmu.memory[0xff05] = 0
                     cpu.mmu.memory[0xff0f] |= 0x4
+                else:
+                    cpu.mmu.memory[0xff05] += 1
     elif cpu.mmu.memory[0xff07] & 0x4:
         timer += clock
         if cpu.mmu.memory[0xff07] & 0x3 == 1:
@@ -123,10 +124,10 @@ def get_controls():
 def main():
     t0, t1 = 0, 0
     screen = pygame.display.set_mode((160, 144))
-    start_logging = 0x10000
+    start_logging = 0x100000
     div = 0
     timer = 0
-    boot_loader = 'DMG_quickboot.bin'
+    boot_loader = 'DMG_ROM.bin'
     filename = 'tetris.gb'
     cpu.loadboot(boot_loader)
     cpu.load(filename)
@@ -140,14 +141,14 @@ def main():
         #    break
         #if gpu.frame == 1100:
         #    debug.level = 0
-        if cpu.mmu.read(reg['pc']) == 0x10:
-            break
+        if reg['pc'] == start_logging:
+            debug.level = 1
         cpu.run = do_interrupts(cpu.run, reg, interrupt_state)
         if cpu.run == 1:
             try:
                 last_instruction = reg['pc']
                 clock = do_cpu(reg, interrupt_state)
-            except (IndexError, KeyError):
+            except (IndexError, KeyError, ValueError):
                 print (hex(reg['pc']))
                 if cpu.mmu.read(last_instruction) == 0xcb:
                     print("Need to implement the following *CB* command:")

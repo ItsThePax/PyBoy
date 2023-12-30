@@ -15,9 +15,12 @@ def load(file):
         byte = f.read(1)
         i += 1
     f.close()
-    if mmu.cart[0x0147] == 0:
+    print(hex(mmu.cart[0x0147]))
+    if mmu.cart[0x0147] in [0, 8]:
         mmu.cartrage_type = 0
-    elif 0xf <= mmu.cart[0x0147] < 0x14:
+    elif mmu.cart[0x0147] in [1, 2, 3]:
+        mmu.cartrage_type = 1
+    elif 0xf <= mmu.cart[0x0147] in [12, 13]:
         mmu.cartrage_type = 3
     mmu.rom_size = mmu.cart[0x0148]
     mmu.ram_size = mmu.cart[0x0149]
@@ -757,6 +760,8 @@ def op_35(register, b, interrupts):
         register['f'] |= 0x20
     else:
         register['f'] &= ~0x20
+    if value < 0:
+        value += 256
     mmu.write(register['clock'], hl, value)
     return 12
 

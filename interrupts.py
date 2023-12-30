@@ -57,7 +57,7 @@ def interrupts(running, register, state):
         if mmu.memory[0xffff] & 0x4:
             if state[2]:
                 if debug.level > 0:
-                    debug.l.write('IME enabled, ***tstate[2]r interrupt***\n\n')
+                    debug.l.write('IME enabled, ***timer interrupt***\n\n')
                 state[2] = 0
                 running = 1
                 mmu.write(register['clock'], 0xff0f, 0)

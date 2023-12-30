@@ -245,10 +245,10 @@ def do_gpu(screen, reg):
                     del sb
                 pygame.display.update()
                 t2 = time.time()
-                try:
-                    print(1/(t2 - t3))
-                except:
-                    pass
+                #try:
+                #    print(1/(t2 - t3))
+                #except:
+                #    pass
                 t3 = time.time()
                 cpu.mmu.memory[0xff0f] |= 0x1
                 get_controls()

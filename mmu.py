@@ -19,7 +19,7 @@ memory = bytearray([])
 for i in range(0x10000):
     memory.append(random.randint(0, 0xff))
 cart = bytearray([])
-for i in range(0x100000):
+for i in range(0x200000):
     cart.append(0)
 ram = bytearray([])
 for i in range(0x8000):
