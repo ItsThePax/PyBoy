@@ -247,19 +247,12 @@ def do_gpu(screen, reg):
                 t2 = time.time()
                 try:
                     print(1/(t2 - t3))
-                    #print (frame)
-                        
-                
-                #    pass
-                   #print (cpu.mmu.get_controls())
-                   #print (unique_addr)
                 except:
                     pass
                 t3 = time.time()
                 cpu.mmu.memory[0xff0f] |= 0x1
                 get_controls()
                 frame += 1
-                #print(frame)
     else:
         reg['clock'] = 0
         cpu.mmu.memory[0xff41] = 0x3

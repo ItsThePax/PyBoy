@@ -2,6 +2,7 @@
 *.pyc
 log.txt
 memdump.bin
+**/__pycache__/
 
 #'illegal' rom files
 *.gb
@@ -56,5 +57,10 @@ Temporary Items
 .apdisk
 *.sav
 *.sn1
+
+# custom files for this project
 PyBoy.rar
 DMG_ROM.bin
+ramdump.bin
+log.txt
+

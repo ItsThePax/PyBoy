@@ -7,10 +7,6 @@ import debug
 import pygame
 
 
-
-
-
-
 def do_cpu(reg, interrupts):
     b = [0, 0, 0]
     length = cpu.length_lookup[cpu.mmu.read(reg['pc'])]
@@ -124,7 +120,6 @@ def get_controls():
                 cpu.mmu.select = 0
 
 
-
 def main():
     t0, t1 = 0, 0
     screen = pygame.display.set_mode((160, 144))
@@ -132,7 +127,7 @@ def main():
     div = 0
     timer = 0
     boot_loader = 'DMG_quickboot.bin'
-    filename = 'pokemon blue.gb'
+    filename = 'tetris.gb'
     cpu.loadboot(boot_loader)
     cpu.load(filename)
     gpu.frame = 0
@@ -150,8 +145,6 @@ def main():
         cpu.run = do_interrupts(cpu.run, reg, interrupt_state)
         if cpu.run == 1:
             try:
-                #if reg['pc'] not in gpu.unique_addr:
-                 #   gpu.unique_addr.append(reg['pc'])
                 last_instruction = reg['pc']
                 clock = do_cpu(reg, interrupt_state)
             except (IndexError, KeyError):
@@ -172,12 +165,10 @@ def main():
                         debug.l.write('\n')
                 break
         else:
-            #print ("run == 0")
             clock = 4
         timer, div = do_timing(clock, timer, div, reg)
         gpu.do_gpu(screen, reg)
-        #get_controls()
-        
+
     print("The PC is currently at:")
     print(hex(last_instruction))
     print(cpu.mmu.rom_bank)

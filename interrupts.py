@@ -92,7 +92,5 @@ def interrupts(running, register, state):
                 register['sp'] -= 2
                 register['pc'] = 0x60
                 register['clock'] += 16
-    #if running is not cpu.run:
-    #    print("interrupt changed running to " + str(running))
     return running
     

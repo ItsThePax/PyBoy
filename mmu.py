@@ -104,7 +104,6 @@ def read_mc1(addr):
             return cart[addr]
     else:
         if addr == 0xff00:
-            print("getting controls")
             return get_controls()
         else:
             return memory[addr]
