@@ -11,19 +11,21 @@ ram_size = 0
 
 in_bios = 1
 rom_bank = 0
-ram_bank = 1
+ram_bank = 0
 write_protect = 1
 
-bootloader = []
-memory = []
+bootloader = bytearray([])
+memory = bytearray([])
 for i in range(0x10000):
     memory.append(random.randint(0, 0xff))
-cart = []
+cart = bytearray([])
 for i in range(0x100000):
     cart.append(0)
-ram = []
+ram = bytearray([])
 for i in range(0x8000):
     ram.append(random.randint(0, 0xff))
+
+
     
 memory[0xff40] = 0    
 memory[0xff43] = 0
@@ -84,6 +86,29 @@ def read_mc0(addr):
             return get_controls()
         else:
             return memory[addr]
+
+
+def read_mc1(addr):
+    global a, b, up, down, left, right, start, select, rom_bank
+    if 0 <= addr < 0x8000:
+        if 0 <= addr < 256:
+            if in_bios == 1:
+                return bootloader[addr]
+            else:
+                return cart[addr]
+        elif 0x4000 <= addr < 0x8000:
+            if rom_bank == 0:
+                return cart[addr]
+            return cart[(addr - 0x4000) + (0x4000 * rom_bank)]
+        else:
+            return cart[addr]
+    else:
+        if addr == 0xff00:
+            print("getting controls")
+            return get_controls()
+        else:
+            return memory[addr]
+        
         
 
 def read_mc3(addr):
@@ -100,6 +125,8 @@ def read_mc3(addr):
             return cart[(addr - 0x4000) + (0x4000 * rom_bank)]
         else:
             return cart[addr]
+    elif 0xa000 <= addr < 0xc000:
+        return ram[(ram_bank * 0x2000) + (addr - 0xa000)]
     else:
         if addr == 0xff00:
             return get_controls()
@@ -148,19 +175,10 @@ def write_mc0(clock, addr, value):
             memory[addr] = value
 
 
-def write_mc3(clock, addr, value):
+def write_mc1(clock, addr, value):
     global in_bios, write_protect, rom_bank, ram_bank
-    if 0 <= addr < 0x2000:
-        if value == 0x0a:
-            write_protect = 0
-        else:
-            write_protect = 1
-    elif 0x2000 <= addr <= 0x4000:
+    if 0x2000 <= addr <= 0x4000:
             rom_bank = value
-    elif 0x4000 <= addr < 0x6000:
-            ram_bank = value
-    elif 0x6000 <= addr < 0x8000:
-        return 0 #TODO implement RTC
     elif 0x8000 <= addr < 0xa000:
         memory[addr] = value
     elif 0xc000 <= addr < 0xde00:
@@ -194,8 +212,57 @@ def write_mc3(clock, addr, value):
             memory[addr] = value
 
 
+def write_mc3(clock, addr, value):
+    global in_bios, write_protect, rom_bank, ram_bank
+    if 0 <= addr < 0x2000:
+        if value == 0x0a:
+            write_protect = 0
+        else:
+            write_protect = 1
+    elif 0x2000 <= addr <= 0x4000:
+            rom_bank = value
+    elif 0x4000 <= addr < 0x6000:
+            ram_bank = value % 3
+    elif 0x6000 <= addr < 0x8000:
+        return 0 #TODO implement RTC
+    elif 0x8000 <= addr < 0xa000:
+        memory[addr] = value
+    elif 0xa000 <= addr < 0xc000:
+        if write_protect == 0:
+            ram[(ram_bank * 0x2000) + (addr - 0xa000)] = value
+    elif 0xc000 <= addr < 0xde00:
+        memory[addr] = value
+        memory[addr + 0x2000] = value
+    elif 0xde00 <= addr < 0xe000:
+        memory[addr] = value
+    elif 0xe000 <= addr < 0xfe00:
+        memory[addr] = value
+        memory[addr - 0x2000] = value
+    elif 0xfe00 <= addr < 0xfea0:
+        memory[addr] = value
+    elif 0xff00 <= addr < 0x10000:
+        if addr == 0xff00:
+            memory[0xff00] = value | 0xf
+        if addr == 0xff04:
+            memory[0xff04] = 0
+        elif addr == 0xff40:
+            if memory[0xff40] & (1 << 7):
+                if value & (1 << 7):
+                    clock = 0
+            memory[addr] = value
+        elif addr == 0xff44:
+            memory[addr] = 0
+            clock = 0
+        elif addr == 0xff46:
+            do_dma(value)
+        elif addr == 0xff50:
+            in_bios = 0
+        else:
+            memory[addr] = value
 
-mc_read_mapping = [read_mc0, None, None, read_mc3]
-mc_write_mapping = [write_mc0, None, None, write_mc3]
+
+
+mc_read_mapping = [read_mc0, read_mc1, None, read_mc3]
+mc_write_mapping = [write_mc0, write_mc1, None, write_mc3]
 
         

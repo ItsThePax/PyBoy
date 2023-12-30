@@ -19,6 +19,14 @@ def do_cpu(reg, interrupts):
     if debug.level > 0:
         debug.l.write('\nAt address: ')
         debug.l.write(hex(reg['pc']))
+        debug.l.write(' Cartridge address: ')
+        if 0x0000 <= reg['pc'] < 0x4000:
+            debug.l.write(hex(reg['pc']))
+        elif 0x4000 <= reg['pc'] < 0x8000:
+            addr = (reg['pc'] - 0x4000) + (0x4000 * cpu.mmu.rom_bank)
+            debug.l.write(hex(addr))
+        else:
+            debug.l.write("N\A")
         debug.l.write('\n')
         debug.debug_log(length, debug.l, b, reg)
     reg['pc'] += length
@@ -37,9 +45,10 @@ def do_timing(clock, timer, div, reg):
     div += clock
     if div >= 256:
         div -= 256
-        cpu.mmu.memory[0xff04] += 1
-        if cpu.mmu.memory[0xff04] >= 256:
-            cpu.mmu.memory[0xff04] -= 256
+        if cpu.mmu.memory[0xff04] == 255:
+            cpu.mmu.memory[0xff04] = 0
+        else:
+            cpu.mmu.memory[0xff04] += 1
     if cpu.mmu.memory[0xff07] & 0x4:
         timer += clock
         if cpu.mmu.memory[0xff07] & 0x3 == 0:
@@ -75,9 +84,10 @@ def do_timing(clock, timer, div, reg):
     return timer, div
 
         
-def get_controls():    
-    for event in pygame.event.get():
-        if event.type == 2:
+def get_controls():
+    events = pygame.event.get()
+    for event in events:
+        if event.type == 678:
             if event.key == 97:
                 cpu.mmu.a = 1
             elif event.key == 115:
@@ -95,7 +105,7 @@ def get_controls():
             elif event.key == 32:
                 cpu.mmu.select = 1
             cpu.mmu.memory[0xff0f] |= 0x10
-        elif event.type == 3:
+        elif event.type == 679:
             if event.key == 97:
                 cpu.mmu.a = 0
             elif event.key == 115:
@@ -118,26 +128,34 @@ def get_controls():
 def main():
     t0, t1 = 0, 0
     screen = pygame.display.set_mode((160, 144))
-    start_logging = 0xffff
+    start_logging = 0x10000
     div = 0
     timer = 0
-    boot_loader = 'DMG_QUICKBOOT.bin'
+    boot_loader = 'DMG_quickboot.bin'
     filename = 'pokemon blue.gb'
     cpu.loadboot(boot_loader)
     cpu.load(filename)
     gpu.frame = 0
-    run = 1
+    cpu.run = 1
     global reg
     reg = {'a': 0, 'f': 0, 'b': 0, 'c': 0, 'd': 0, 'e': 0, 'h': 0, 'l': 0, 'sp': 0, 'pc': 0, 'clock': 0}
     interrupt_state = [0, 0, 0]
     while 1:
-        if reg['pc'] == start_logging:
-            debug.level = 1
-        run = do_interrupts(run, reg, interrupt_state)
-        if run == 1:
+        #if gpu.frame == 1200:
+        #    break
+        #if gpu.frame == 1100:
+        #    debug.level = 0
+        if cpu.mmu.read(reg['pc']) == 0x10:
+            break
+        cpu.run = do_interrupts(cpu.run, reg, interrupt_state)
+        if cpu.run == 1:
             try:
+                #if reg['pc'] not in gpu.unique_addr:
+                 #   gpu.unique_addr.append(reg['pc'])
+                last_instruction = reg['pc']
                 clock = do_cpu(reg, interrupt_state)
-            except (KeyError, TypeError):
+            except (IndexError, KeyError):
+                print (hex(reg['pc']))
                 if cpu.mmu.read(last_instruction) == 0xcb:
                     print("Need to implement the following *CB* command:")
                     print(hex(cpu.mmu.read(last_instruction + 1)))
@@ -154,21 +172,33 @@ def main():
                         debug.l.write('\n')
                 break
         else:
+            #print ("run == 0")
             clock = 4
         timer, div = do_timing(clock, timer, div, reg)
         gpu.do_gpu(screen, reg)
-        get_controls()
+        #get_controls()
+        
     print("The PC is currently at:")
     print(hex(last_instruction))
     print(cpu.mmu.rom_bank)
+    debug.level = 1
     if debug.level > 0:
         debug.l.write("The PC is currently at:")
         debug.l.write(hex(last_instruction))
         debug.l.write('\n')
         g = open('memdump.bin', 'wb')
         i = 0x0
-        while i <= 0xffff:
+        for i in range(len(cpu.mmu.memory)):
             g.write(struct.pack("B", cpu.mmu.memory[i]))
+            if i % 0x1000 == 0:
+                print(hex(i))
+            i += 1
+        time.sleep(10)
+        g.close()
+        g = open('ramdump.bin', 'wb')
+        i = 0x0
+        for i in range(len(cpu.mmu.ram)):
+            g.write(struct.pack("B", cpu.mmu.ram[i]))
             if i % 0x1000 == 0:
                 print(hex(i))
             i += 1

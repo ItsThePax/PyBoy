@@ -4,10 +4,7 @@ l = open('log.txt', 'w')
 
 
 def debug_log(l, log, b, register):
-    for i in range(l):
-        log.write(hex(b[i]))
-        log.write(' ')
-    log.write('\n')
+    
     log.write('a:')
     log.write(str(hex(register['a'])))
     log.write(' ')
@@ -40,6 +37,10 @@ def debug_log(l, log, b, register):
     log.write(' ')
     log.write('clock:')
     log.write(str(register['clock']))
+    log.write('\n')
+    for i in range(l):
+        log.write(hex(b[i]))
+        log.write(' ')
     log.write('\n')
 
 

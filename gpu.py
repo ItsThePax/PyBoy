@@ -13,9 +13,51 @@ t0 = 0
 t1 = 0
 t2 = 0
 t3 = 0
+unique_addr = []
 
+
+def get_controls():
+    events = pygame.event.get()
+    for event in events:
+        if event.type == 768:
+            if event.key == 97:
+                cpu.mmu.a = 1
+            elif event.key == 115:
+                cpu.mmu.b = 1
+            elif event.key == 1073741904:
+                cpu.mmu.left = 1
+            elif event.key == 1073741906:
+                cpu.mmu.up = 1
+            elif event.key == 1073741905:
+                cpu.mmu.down = 1
+            elif event.key == 1073741903:
+                cpu.mmu.right = 1
+            elif event.key == 13:
+                cpu.mmu.start = 1
+            elif event.key == 32:
+                cpu.mmu.select = 1
+            cpu.mmu.memory[0xff0f] |= 0x10
+        elif event.type == 769:
+            if event.key == 97:
+                cpu.mmu.a = 0
+            elif event.key == 115:
+                cpu.mmu.b = 0
+            elif event.key == 1073741904:
+                cpu.mmu.left = 0
+            elif event.key == 1073741906:
+                cpu.mmu.up = 0
+            elif event.key == 1073741905:
+                cpu.mmu.down = 0
+            elif event.key == 1073741903:
+                cpu.mmu.right = 0
+            elif event.key == 13:
+                cpu.mmu.start = 0
+            elif event.key == 32:
+                cpu.mmu.select = 0
+                
 
 def draw_screen(s):
+    t0 = time.time()
     scrolly = cpu.mmu.memory[0xff42]
     scrollx = cpu.mmu.memory[0xff43]
     winy = cpu.mmu.memory[0xff4a]
@@ -58,6 +100,7 @@ def draw_screen(s):
                     raw_color = raw_u | raw_l 
                     actual_color = (bg_pallet >> (raw_color * 2)) & 0x3
                     s[i][j] = color[actual_color]
+                    
         else:
             winy = 144
             winx = 167
@@ -84,6 +127,7 @@ def draw_screen(s):
                 raw_color = raw_u | raw_l 
                 actual_color = (bg_pallet >> (raw_color * 2)) & 0x3
                 s[i][j] = color[actual_color]
+                
                 
     #Sprites with priority > 0 
     if cpu.mmu.memory[0xff40] & (1 << 1): #sprites enabled
@@ -119,6 +163,7 @@ def draw_screen(s):
                                             actual_color = (pallet >> (raw_color * 2)) & 0x3
                                             if actual_color != 0:
                                                 s[x_pos][y_pos] = color[actual_color]
+                                            
                         else:   #y flip
                             for pixel_y in range (8):
                                 y_pos = y + pixel_y + scrolly - 16
@@ -131,6 +176,7 @@ def draw_screen(s):
                                             actual_color = (pallet >> (raw_color * 2)) & 0x3
                                             if actual_color != 0:
                                                 s[x_pos][y_pos] = color[actual_color]
+                                            
                     else: #x flip
                         if cpu.mmu.memory[oam_loc + 3] & (1 << 5):
                             for pixel_y in range (8):
@@ -144,6 +190,7 @@ def draw_screen(s):
                                             actual_color = (pallet >> (raw_color * 2)) & 0x3
                                             if actual_color != 0:
                                                 s[x_pos][y_pos] = color[actual_color]
+                                            
                         else: # no flip
                             for pixel_y in range (8):
                                 y_pos = y + pixel_y + scrolly - 16
@@ -162,7 +209,8 @@ def draw_screen(s):
                                                             (((cpu.mmu.memory[sprite_data + ((pixel_y * 2) + 1)] >> (7 - pixel_x)) & 1) << 1)
                                                 if raw_color != 0:
                                                     actual_color = (pallet >> (raw_color * 2)) & 0x3
-                                                    s[x_pos][y_pos] = color[actual_color]        
+                                                    s[x_pos][y_pos] = color[actual_color] 
+                                                      
         #TODO sprites priority 0
                     
 
@@ -198,11 +246,20 @@ def do_gpu(screen, reg):
                 pygame.display.update()
                 t2 = time.time()
                 try:
-                    print 1 / (t2 - t3)
+                    print(1/(t2 - t3))
+                    #print (frame)
+                        
+                
+                #    pass
+                   #print (cpu.mmu.get_controls())
+                   #print (unique_addr)
                 except:
                     pass
                 t3 = time.time()
                 cpu.mmu.memory[0xff0f] |= 0x1
+                get_controls()
+                frame += 1
+                #print(frame)
     else:
         reg['clock'] = 0
         cpu.mmu.memory[0xff41] = 0x3

@@ -3,6 +3,7 @@ import cb
 import codecs
 import interrupts
 
+run = 1
 
 def load(file):
     f = open(file, "rb")
@@ -33,7 +34,6 @@ def loadboot(file):
         i += 1
     f.close()
 
-
 def op_00(register, b, interrupts):
     return 4
 
@@ -53,14 +53,14 @@ def op_02(register, b, interrupts):
 def op_03(register, b, interrupts):
     bc = (register['b'] << 8) + register['c']
     bc += 1
-    register['b'] = bc >> 8
+    register['b'] = (bc >> 8) & 0xff
     register['c'] = bc & 0xff
     return 8
 
 
 def op_04(register, b, interrupts):
     h = register['b']
-    register['b'] += 1
+    register['b'] = (register['b'] + 1) & 0xff
     if register['b'] == 0x0:
         register['f'] &= ~0x80
     else:
@@ -97,15 +97,21 @@ def op_06(register, b, interrupts):
 
 
 def op_07(register, b, interrupts):
-    temp = register['a'] & 0x80
+    """temp = register['a'] & 0x80
     register['a'] <<= 1
     register['a'] &= 0xff
     if temp:
         register['f'] = 0x10
     else:
         register['f'] = 0x0
+    return 4"""
+    register['f'] = 0
+    register['a'] <<= 1
+    if register['a'] > 0xff:
+        register['f'] |= 0x10
+        register['a'] += 1
+        register['a'] &= 0xff
     return 4
-
 
 def op_08(register, b, interrupts):
     temp = b[2] << 8 | b[1]
@@ -148,7 +154,7 @@ def op_0b(register, b, interrupts):
 
 def op_0c(register, b, interrupts):
     h = register['c']
-    register['c'] += 1
+    register['c'] = (register['c'] + 1) & 0xff
     if register['c'] == 0x0:
         register['f'] &= ~0x80
     else:
@@ -157,7 +163,7 @@ def op_0c(register, b, interrupts):
     if (h & 0xf) + (register['c'] & 0xf) > 0xf:
         register['f'] |= 0x20
     else:
-        register['f'] &= ~0x20  
+        register['f'] &= ~0x20
     return 4
 
 
@@ -176,12 +182,19 @@ def op_0d(register, b, interrupts):
 
 
 def op_0f(register, b, interrupts):
-    if register['a'] & 1:
+    """if register['a'] & 1:
         register['f'] = 0x10
         register['a'] += 0x100
     else:
         register['f'] = 0
     register['a'] >>= 1
+    return 4"""
+    register['f'] = 0
+    temp = register['a'] & 0x1
+    register['a'] >>= 1
+    if temp:
+        register['a'] += 0x80
+        register['f'] = 0x10
     return 4
 
 
@@ -211,14 +224,14 @@ def op_12(register, b, interrupts):
 def op_13(register, b, interrupts):
     de = (register['d'] << 8) + register['e']
     de += 1
-    register['d'] = de >> 8
+    register['d'] = (de >> 8) & 0xff
     register['e'] = de & 0xff
     return 8
 
 
 def op_14(register, b, interrupts):
     h = register['d']
-    register['d'] += 1
+    register['d'] = (register['d'] + 1) & 0xff
     if register['d'] == 0x0:
         register['f'] &= ~0x80
     else:
@@ -302,18 +315,32 @@ def op_1b(register, b, interrupts):
 
 
 def op_1c(register, b, interrupts):
-    h = register['e']
-    register['e'] += 1
-    if register['e'] == 0x0:
-        register['f'] &= ~0x80
-    else:
-        register['f'] |= 0x80
     register['f'] &= ~0x40
-    if (h & 0xf) + (register['e'] & 0xf) > 0xf:
+    if register['e'] & 0xf == 0xf:
         register['f'] |= 0x20
     else:
-        register['f'] &= ~0x20  
+        register['f'] &= ~0x20
+    if register['e'] == 0xff:
+        register['e'] = 0
+        register['f'] |= 0x80
+    else:
+        register['f'] &= ~0x80
+        register['e'] += 1
     return 4
+
+    
+##    h = register['e']
+##    register['e'] = (register['e'] + 1) & 0xff
+##    if register['e'] == 0x0:
+##        register['f'] &= ~0x80
+##    else:
+##        register['f'] |= 0x80
+##    register['f'] &= ~0x40
+##    if (h & 0xf) + (register['e'] & 0xf) > 0xf:
+##        register['f'] |= 0x20
+##    else:
+##        register['f'] &= ~0x20  
+##    return 4
     
     
 def op_1d(register, b, interrupts):
@@ -374,14 +401,14 @@ def op_22(register, b, interrupts):
 def op_23(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
     hl += 1
-    register['h'] = hl >> 8
+    register['h'] = (hl >> 8) & 0xff
     register['l'] = hl & 0xff
     return 8
 
 
 def op_24(register, b, interrupts):
     e = register['h']
-    register['h'] += 1
+    register['h'] = (register['h'] + 1) & 0xff
     if register['h'] == 0x0:
         register['f'] &= ~0x80
     else:
@@ -416,60 +443,169 @@ def op_26(register, b, interrupts):
     return 8
 
 
+#def daa(x, c, h, n):
+#    if c:
+#        c = 1
+#    if h:
+#        h = 1
+#    if n:
+#        n = 1
+#    hnib = x >> 4
+#    lnib = x & 0xf
+#    if n == 0:
+#        if (c == 0 and 0 <= hnib <=9 and h == 0 and 0 <= lnib <= 9):
+#            return [x + 0x00, 0]
+#        
+#        elif (c == 0 and 0 <= hnib <=8 and h == 0 and 0xa <= lnib <= 0xf):
+#            return [x + 0x06, 0]
+#        elif (c == 0 and 0 <= hnib <=9 and h == 1 and 0 <= lnib <= 3):
+#            return [x + 0x06, 0]
+#        elif (c == 0 and 0xa <= hnib <=0xf and h == 0 and 0 <= lnib <= 9):
+#            return [x + 0x60, 1]
+#        elif (c == 0 and 9 <= hnib <=0xf and h == 0 and 0x8 <= lnib <= 0xf):
+#            return [x + 0x66, 1]
+#        elif (c == 0 and 0xa <= hnib <=0xf and h == 1 and 0 <= lnib <= 3):
+#            return [x + 0x66, 1]
+#        elif (c == 1 and 0 <= hnib <=2 and h == 0 and 0 <= lnib <= 9):
+#            return [x + 0x60, 1]
+#        elif (c == 1 and 0 <= hnib <=2 and h == 0 and 0x0a <= lnib <= 0xf):
+#            return [x + 0x66, 1]
+#        elif (c == 1 and 0 <= hnib <=3 and h == 1 and 0 <= lnib <= 3):
+#            return [x + 0x66, 1]
+#        else:
+#            return None
+
+#    if n == 1:
+#        if (c == 0 and 0 <= hnib <=9 and h == 0 and 0 <= lnib <= 9):
+#            return [x, 0]
+#        elif (c == 0 and 0 <= hnib <=8 and h == 1 and 6 <= lnib <= 0xf):
+#            return [x + 0xfa, 0]
+#        elif (c == 1 and 7 <= hnib <=0xf and h == 0 and 0 <= lnib <= 9):
+#            return [x + 0xa0, 1]
+#        elif (c == 1 and 6 <= hnib <=0xf and h == 1 and 6 <= lnib <= 0xf):
+#            return [x + 0x9a, 1]
+#        else:
+#            return None
+        
+
+def daa(x, flags):
+    flags[0] = 0
+    xLowNibble = x & 0xf
+    xHighNibble = x >> 4
+    if flags[1] == 0:
+        if flags[3] == 0 and 0x0 <= xHighNibble <= 0x9 and flags[2] == 0 and 0x0 <= xLowNibble <= 0x9:
+            pass
+        elif flags[3] == 0 and 0x0 <= xHighNibble <= 0x8 and flags[2] == 0 and 0xa <= xLowNibble <= 0xf:
+            x += 0x6
+        elif flags[3] == 0 and 0x0 <= xHighNibble <= 0x9 and flags[2] == 1 and 0x0 <= xLowNibble <= 0x3:
+            x += 0x6
+        elif flags[3] == 0 and 0xa <= xHighNibble <= 0xf and flags[2] == 0 and 0x0 <= xLowNibble <= 0x9:
+            x += 0x60
+            flags[3] = 1
+        elif flags[3] == 0 and 0x9 <= xHighNibble <= 0xf and flags[2] == 0 and 0xa <= xLowNibble <= 0xf:
+            x += 0x66
+            flags[3] = 1
+        elif flags[3] == 0 and 0xa <= xHighNibble <= 0xf and flags[2] == 1 and 0x0 <= xLowNibble <= 0x3:
+            x += 0x66
+            flags[3] = 1
+        elif flags[3] == 1 and 0x0 <= xHighNibble <= 0x2 and flags[2] == 0 and 0x0 <= xLowNibble <= 0x9:
+            x += 0x60
+            flags[3] = 1
+        elif flags[3] == 1 and 0x0 <= xHighNibble <= 0x2 and flags[2] == 0 and 0xa <= xLowNibble <= 0xf:
+            x += 0x66
+            flags[3] = 1
+        elif flags[3] == 1 and 0x0 <= xHighNibble <= 0x3 and flags[2] == 1 and 0x0 <= xLowNibble <= 0x3:
+            x += 0x66
+            flags[3] = 1
+        x &= 0xff
+        if x == 0:
+            flags[0] = 1
+        return [x, flags[3]]
+    else:
+        if flags[3] == 0 and 0x0 <= xHighNibble <= 0x9 and flags[2] == 0 and 0x0 <= xLowNibble <= 0x9:
+            pass
+        elif flags[3] == 0 and 0x0 <= xHighNibble <= 0x8 and flags[2] == 1 and 0x6 <= xLowNibble <= 0xf:
+            x += 0xfa
+        elif flags[3] == 1 and 0x7 <= xHighNibble <= 0xf and flags[2] == 0 and 0x0 <= xLowNibble <= 0x9:
+            x += 0xa0
+        elif flags[3] == 1 and 0x6 <= xHighNibble <= 0xf and flags[2] == 1 and 0x6 <= xLowNibble <= 0xf:
+            x += 0x9a
+        x &= 0xff
+        if x == 0:
+            flags[0] = 1
+        return [x, flags[3]]
+
+
 def op_27(register, b, interrupts):
     n = register['f'] & 0x40
+    if n:
+        n - 1
     h = register['f'] & 0x20
+    if h:
+        h = 1
     c = register['f'] & 0x10
-    ah = register['a'] >> 4
-    al = register['a'] | 0xf
+    if c:
+        c = 1
+    #print(hex(register['a']), c, h, n, hex(register['pc']))
+    num = daa(register['a'], [0, n, h, c])
     register['f'] &= 0x40
-    if n == 0:
-        if c == 0:
-            if h == 0:
-                if ah < 0x9 and al <= 0x9:
-                    register['a'] += 0
-                elif ah <= 0x8 and al >= 0xa:
-                    register['a'] += 0x6
-                elif ah >= 0xa and al <= 0x9:
-                    register['a'] += 0x60
-                    register['f'] |= 0x10
-                elif ah >= 0x9 and al >= 0xa:
-                    register['a'] += 0x66
-                    register['f'] |= 0x10
-            else:
-                if ah <= 0x9 and al <= 0x3:
-                    register['a'] += 0x6
-                elif ah >= 0xa and al <= 0x4:
-                    register['a'] += 0x66
-                    register['f'] |= 0x10
-        else:
-            if h == 0:
-                if al >= 0x9:
-                    register['a'] += 0x60
-                    register['f'] |= 0x10
-                else:
-                    register['a'] += 0x66
-                    register['f'] |= 0x10
-            else:
-                register['a'] += 0x66
-                register['f'] |= 0x10
-    else:
-        if c == 0:
-            if h == 0:
-                register['a'] += 0
-            else:
-                register['a'] += 0xfa
-        else:
-            if h == 0:
-                register['a'] += 0xa0
-                register['f'] |= 0x10
-            else:
-                register['a'] += 0x9a
-                register['f'] |= 0x10
-    register['a'] &= 0xff
+    if num[1]:
+        register['f'] |= 0x10
+    register['a'] = num[0] & 0xff
     if register['a'] == 0:
         register['f'] |= 0x80
     return 4
+
+##    ah = register['a'] >> 4
+##    al = register['a'] | 0xf
+##    register['f'] &= 0x40
+##    if n == 0:
+##        if c == 0:
+##            if h == 0:
+##                if ah < 0x9 and al <= 0x9:
+##                    register['a'] += 0
+##                elif ah <= 0x8 and al >= 0xa:
+##                    register['a'] += 0x6
+##                elif ah >= 0xa and al <= 0x9:
+##                    register['a'] += 0x60
+##                    register['f'] |= 0x10
+##                elif ah >= 0x9 and al >= 0xa:
+##                    register['a'] += 0x66
+##                    register['f'] |= 0x10
+##            else:
+##                if ah <= 0x9 and al <= 0x3:
+##                    register['a'] += 0x6
+##                elif ah >= 0xa and al <= 0x4:
+##                    register['a'] += 0x66
+##                    register['f'] |= 0x10
+##        else:
+##            if h == 0:
+##                if al >= 0x9:
+##                    register['a'] += 0x60
+##                    register['f'] |= 0x10
+##                else:
+##                    register['a'] += 0x66
+##                    register['f'] |= 0x10
+##            else:
+##                register['a'] += 0x66
+##                register['f'] |= 0x10
+##    else:
+##        if c == 0:
+##            if h == 0:
+##                register['a'] += 0
+##            else:
+##                register['a'] += 0xfa
+##        else:
+##            if h == 0:
+##                register['a'] += 0xa0
+##                register['f'] |= 0x10
+##            else:
+##                register['a'] += 0x9a
+##                register['f'] |= 0x10
+##    register['a'] &= 0xff
+##    if register['a'] == 0:
+##        register['f'] |= 0x80
+##    return 4
 
 
 def op_28(register, b, interrupts):
@@ -512,14 +648,14 @@ def op_2b(register, b, interrupts):
     hl -= 1
     if hl < 0:
         hl += 0x10000
-    register['l'] = hl >> 8
-    register['h'] = hl & 0xff
+    register['h'] = hl >> 8
+    register['l'] = hl & 0xff
     return 8
 
 
 def op_2c(register, b, interrupts):
     h = register['l']
-    register['l'] += 1
+    register['l'] = (register['l'] + 1) & 0xff
     if register['l'] == 0x0:
         register['f'] |= 0x80
     else:
@@ -585,7 +721,7 @@ def op_32(register, b, interrupts):
 
 
 def op_33(register, b, interrupts):
-    register['sp'] += 1
+    register['sp'] += 1 & 0xffff
     return 8
 
 
@@ -593,6 +729,7 @@ def op_34(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     h = mmu.read(hl)
     value = h + 1
+    value &= 0xff
     mmu.write(register['clock'], hl, value)
     if (value) == 0x0:
         register['f'] |= 0x80
@@ -681,18 +818,32 @@ def op_3b(register, b, interrupts):
 
 
 def op_3c(register, b, interrupts):
-    h = register['a']
-    register['a'] += 1
-    if register['a'] == 0x0:
+    register['f'] &= ~0x40
+    register['f'] &= ~0x20
+    if register['a'] == 0xff:
+        register['a'] = 0
+        register['f'] &= ~0x20
         register['f'] |= 0x80
     else:
+        register['a'] += 1
+        if register['a'] & 0x1f == 0x10:
+           register['f'] |= 0x20
         register['f'] &= ~0x80
-    register['f'] &= ~0x40
-    if (h & 0xf) + (register['a'] & 0xf) > 0xf:
-        register['f'] |= 0x20
-    else:
-        register['f'] &= ~0x20  
     return 4
+    
+##    h = register['a']
+##    register['a'] += 1
+##    if register['a'] == 0x0:
+##        register['f'] |= 0x80
+##    else:
+##        register['f'] &= ~0x80
+##    register['f'] &= ~0x40
+##    if (h & 0xf) + (register['a'] & 0xf) > 0xf:
+##        register['f'] |= 0x20
+##    else:
+##        register['f'] &= ~0x20
+##    register['a'] &= 0xff
+##    return 4
 
     
 def op_3d(register, b, interrupts):
@@ -739,7 +890,7 @@ def op_42(register, b, interrupts):
 
 
 def op_43(register, b, interrupts):
-    register['b'] = register['b']
+    register['b'] = register['e']
     return 4
 
 
@@ -1143,16 +1294,28 @@ def op_85(register, b, interrupts):
 def op_86(register, b, interrupts):
     hl = (register['h'] << 8) | register['l']
     h = mmu.read(hl)
-    register['a'] += h
     register['f'] = 0
-    register['f'] &= ~0x40
-    if (h & 0xf) + (register['a'] & 0xf) > 0xf:
+    if ((register['a'] & 0xf) + (h & 0xf)) >= 0x10:
         register['f'] |= 0x20
-    if register['a'] > 255:
+    register['a'] += h
+    if register['a'] >= 0x100:
         register['f'] |= 0x10
-        register['a'] &= 0xff
-    if register['a'] == 0x0:
+    else:
+        register['f'] &= ~0x10
+    register['a'] &= 0xff
+    if register['a'] == 0:
         register['f'] |= 0x80
+    #print (hex(register['a']), hex(register['f']), hex(h), hex(register['pc']))
+    return 8
+    
+##    register['f'] &= ~0x40
+##    if (h & 0xf) + (register['a'] & 0xf) > 0xf:
+##        register['f'] |= 0x20
+##    if register['a'] > 255:
+##        register['f'] |= 0x10
+##        register['a'] &= 0xff
+##    if register['a'] == 0x0:
+##        register['f'] |= 0x80
     return 8
 
 
@@ -1270,7 +1433,7 @@ def op_8e(register, b, interrupts):
     h = register['a']
     if register['f'] & 0x10:
         register['a'] += 1
-    register['a'] += hl
+    register['a'] += temp
     register['f'] = 0
     if register['a'] > 0xff:
         register['f'] |= 0x10
@@ -2189,6 +2352,7 @@ def op_e8(register, b, interrupts):
 def op_e9(register, b, interrupts):
     hl = register['h'] << 8 | register['l']
     register['pc'] = hl
+    #print(hex(hl))
     return 4
 
 
@@ -2311,7 +2475,7 @@ def op_fe(register, b, interrupts):
 
 def op_ff(register, b, interrupts):
     mmu.write(register['clock'], register['sp'] - 1, register['pc'] >> 8)
-    mmu.write(register['sp'] - 2, register['pc'] & 0xff)
+    mmu.write(register['clock'], register['sp'] - 2, register['pc'] & 0xff)
     register['sp'] -= 2
     register['pc'] = 0x38
     return 16
@@ -2356,7 +2520,7 @@ opcode_lookup = {
     0x00: op_00, 0x01: op_01, 0x02: op_02, 0x03: op_03, 0x04: op_04, 0x05: op_05, 0x06: op_06, 0x07: op_07,
     0x08: op_08, 0x09: op_09, 0x0a: op_0a, 0x0b: op_0b, 0x0c: op_0c, 0x0d: op_0d, 0x0e: op_0e, 0x0f: op_0f,
     0x10: op_10, 0x11: op_11, 0x12: op_12, 0x13: op_13, 0x14: op_14, 0x15: op_15, 0x16: op_16, 0x17: op_17,
-    0x18: op_18, 0x19: op_19, 0x1a: op_1a, 0x1b: op_1b, 0x1c: op_13, 0x1d: op_1d, 0x1e: op_1e, 0x1f: op_1f,
+    0x18: op_18, 0x19: op_19, 0x1a: op_1a, 0x1b: op_1b, 0x1c: op_1c, 0x1d: op_1d, 0x1e: op_1e, 0x1f: op_1f,
     0x20: op_20, 0x21: op_21, 0x22: op_22, 0x23: op_23, 0x24: op_24, 0x25: op_25, 0x26: op_26, 0x27: op_27,
     0x28: op_28, 0x29: op_29, 0x2a: op_2a, 0x2b: op_2b, 0x2c: op_2c, 0x2d: op_2d, 0x2e: op_2e, 0x2f: op_2f,
     0x30: op_30, 0x31: op_31, 0x32: op_32, 0x33: op_33, 0x34: op_34, 0x35: op_35, 0x36: op_36, 0x37: op_37,
@@ -2381,7 +2545,7 @@ opcode_lookup = {
     0xc8: op_c8, 0xc9: op_c9, 0xca: op_ca, 0xcb: op_cb, 0xcc: op_cc, 0xcd: op_cd, 0xce: op_ce, 0xcf: op_cf,
     0xd0: op_d0, 0xd1: op_d1, 0xd2: op_d2, 0xd5: op_d5, 0xd6: op_d6, 0xd7: op_d7,
     0xd8: op_d8, 0xd9: op_d9, 0xda: op_da, 0xde: op_de,
-    0xe0: op_e0, 0xe1: op_e1, 0xe2: op_e2, 0xe5: op_e5, 0xe6: op_e6, 0xef: op_ef,
+    0xe0: op_e0, 0xe1: op_e1, 0xe2: op_e2, 0xe5: op_e5, 0xe6: op_e6, 0xe7: op_e7, 0xef: op_ef,
     0xe8: op_e8, 0xe9: op_e9, 0xea: op_ea, 0xee: op_ee, 0xef: op_ef,
     0xf0: op_f0, 0xf1: op_f1, 0xf2: op_f2, 0xf3: op_f3, 0xf5: op_f5, 0xf6: op_f6, 0xf7: op_f7, 
     0xf8: op_f8, 0xf9: op_f9, 0xfa: op_fa, 0xfb: op_fb, 0xfe: op_fe, 0xff: op_ff

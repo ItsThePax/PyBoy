@@ -79,8 +79,8 @@ def interrupts(running, register, state):
                 register['sp'] -= 2
                 register['pc'] = 0x58
                 register['clock'] += 16
-    elif mmu.memory[0xff0f] & 0x16:
-        if mmu.memory[0xffff] & 0x16:
+    elif mmu.memory[0xff0f] & 0x10:
+        if mmu.memory[0xffff] & 0x10:
             if state[2]:
                 if debug.level > 0:
                     debug.l.write('IME enabled, ***input interrupt***\n\n')
@@ -92,5 +92,7 @@ def interrupts(running, register, state):
                 register['sp'] -= 2
                 register['pc'] = 0x60
                 register['clock'] += 16
+    #if running is not cpu.run:
+    #    print("interrupt changed running to " + str(running))
     return running
     
