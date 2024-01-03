@@ -3,11 +3,21 @@ import pyboy_mmu
 class Cpu():
     def __init__(self, cartridgeRomPath, biosRomPath):
         #registers
-        #f: Z S C H
-        
-        #a 0, f 1, b 2, c 3, d 4, e 5, h 6, l 7, sp 8, pc 9
-        self.registers = bytearray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-        
+        #f: Z S C H X X X X        
+        #a 0, f 1, b 2, c 3, d 4, e 5, h 6, l 7
+        self.registers = bytearray([0, 0, 0, 0, 0, 0, 0, 0])
+        self.regA = self.registers[0]
+        self.regF = self.registers[1]
+        self.regB = self.registers[2]
+        self.regC = self.registers[3]
+        self.regD = self.registers[4]
+        self.regE = self.registers[5]
+        self.regH = self.registers[6]
+        self.regL = self.registers[7]
+        self.regSP = 0
+        self.regPC = 0
+
+
         #table of function references
         self.opcodeFunctions = [
             self.op00, self.op01, self.op02, self.op03, self.op04, self.op05, self.op06, self.op07, 
@@ -75,48 +85,48 @@ class Cpu():
         self.mmu = pyboy_mmu.Mmu(biosRomPath, cartridgeRomPath)
         return
     
-    
+
     def getState(self):
         return "A:{} F:{} B:{} C:{} D:{} E:{} H:{} L:{} SP:{} PC:{}".format(
-                hex(self.registers[0]), hex(self.registers[1]), hex(self.registers[2]), hex(self.registers[3]),
-                hex(self.registers[4]), hex(self.registers[5]), hex(self.registers[6]), hex(self.registers[7]), 
-                hex(self.registers[8]), hex(self.registers[9]))
+                hex(self.regA), hex(self.regF), hex(self.regB), hex(self.regC),
+                hex(self.regD), hex(self.regE), hex(self.regH), hex(self.regL), 
+                hex(self.regSP), hex(self.regPC))
     
 
     def setCarryFlag(self):
-        self.setBitInByte(self.registers[1], 4)
+        self.setBitInByte(self.regF, 4)
 
 
     def resetCarryFlag(self):
-        self.resetBitInByte(self.registers[1], 4)
+        self.resetBitInByte(self.regF, 4)
 
 
     def setHalfCarryFlag(self):
-        self.setBitInByte(self.registers[1], 5)
+        self.setBitInByte(self.regF, 5)
 
 
     def resetHalfCarryFlag(self):
-        self.resetBitInByte(self.registers[1], 5)
+        self.resetBitInByte(self.regF, 5)
 
 
     def setSubtractionFlag(self):
-        self.setBitInByte(self.registers[1], 6)
+        self.setBitInByte(self.regF, 6)
 
 
     def resetSubtractionFlag(self):
-        self.resetBitInByte(self.registers[1], 6)
+        self.resetBitInByte(self.regF, 6)
 
 
     def setZeroFlag(self):
-        self.setBitInByte(self.registers[1], 7)
+        self.setBitInByte(self.regF, 7)
 
 
     def resetZeroFlag(self):
-        self.resetBitInByte(self.registers[1], 7)
+        self.resetBitInByte(self.regF, 7)
 
 
     def clearFlags(self):
-        self.registers[1] = 0
+        self.regF = 0
     
 
     def setBitInByte(self, target, bit):
@@ -137,7 +147,7 @@ class Cpu():
     def unpackFlags(self):
         flags = bytearray([0, 0, 0, 0])
         for i in range(0, 3,):
-            flags[i] = self.getBitSetInByte(self.registers[1], 7 - i)
+            flags[i] = self.getBitSetInByte(self.regF, 7 - i)
         return flags
     
     # should be passed lenth 4 array/list ordered Z N H C
@@ -171,9 +181,8 @@ class Cpu():
 
     def fetchNextInstruction(self):
         instruction = bytearray([0, 0, 0])
-        instruction[0] = self.mmu.read(self.registers[9])
-        for i in range(1, self.opcodeLength[instruction[0]]):
-            instruction[i] = self.mmu.read(self.registers[9] + i)
+        for i in range(3): 
+            instruction[i] = self.mmu.read(self.regPC + i)
         self.nextInstruction = instruction
     fni = fetchNextInstruction
 
@@ -230,7 +239,7 @@ class Cpu():
             x &= 0xff
             if x == 0:
                 flags[0] = 1
-            self.registers[1] = self.packFlags(flags)
+            self.regF = self.packFlags(flags)
             return x
 
 
@@ -246,45 +255,52 @@ class Cpu():
         return bytes(short >> 8, short & 0xff)
 
 
-    def writeRegisterValueToRegisterPairAddress(self, addressRegisterHigh, addressRegisterLow, valueRegister):
-        self.mmu.write(self.combineTwoChar(addressRegisterHigh, addressRegisterLow), valueRegister)
-        return None
-
-
-    def loadSplit16BitImmediateto8BitRegisterPair(self, registerIndexHigh, registerIndexLow, valueHigh, valueLow):
-        self.registers[registerIndexHigh], self.registers[registerIndexLow] = valueHigh, valueLow
-        return None
+    def increment8bitRegisterPairAs16bitValue(self, registerHigh, registerLow):
+        temp = self.combineTwoChar(registerHigh, registerLow)
+        if temp == 0xffff:
+            return 0, 0
+        return self.splitShort(temp + 1)
     
 
-    def loadSplit16BitImmediateto16BitRegister(self, registerIndex, valueHigh, valueLow):
-        self.registers[registerIndex] = self.combineTwoChar(valueHigh, valueLow)
-        return None
+    def decrement8bitRegisterPairAs16bitValue(self, registerHigh, registerLow):
+        temp = self.combineTwoChar(registerHigh, registerLow)
+        if temp == 0:
+            return 0xff, 0xff
+        return self.splitShort(temp - 1)
     
 
-    def registerBinaryAndRegisterA(self, registerIndex):
-        self.registers[0] &= self.registers[registerIndex]
-        return None
+    def increment8bitRegister(self, register):
+        self.resetSubtractionFlag()
+        if register &0xf == 0xf:
+            self.setHalfCarryFlag()
+        else:
+            self.resetHalfCarryFlag()
+        if register == 0xff:
+            self.setZeroFlag()
+            return 0
+        else:
+            self.resetZeroFlag()
+            return register + 1
+
+            
     
 
-    def writeRegisterAtoHighMemoryOffset(self, highMemoryOffset):
-        self.mmu.write(0xff00 + highMemoryOffset, self.registers[0])
-        return None
-
-    
-    
     #cpu intruction functions
     def op00(self, instruction):
         return 4
     
     def op01(self, instruction):
-        self.loadSplit16BitImmediateto8BitRegisterPair(2, 3, instruction[2], instruction[1])
+        self.regB = instruction[2]
+        self.regC = instruction[1]
         return 12
     
     def op02(self, instruction):
-        return None
+        self.mmu.write(self.combineTwoChar(self.regB, self.regC), self.regA)
+        return 8
 
     def op03(self, instruction):
-        return None
+        self.regB, self.regC = self.increment8bitRegisterPairAs16bitValue(self.regB, self.regC)
+        return 8
 
     def op04(self, instruction):
         return None
@@ -326,14 +342,17 @@ class Cpu():
         return None
 
     def op11(self, instruction):
-        self.loadSplit16BitImmediateto8BitRegisterPair(4, 5, instruction[2], instruction[1])
+        self.regD = instruction[2]
+        self.regE = instruction[1]
         return 12
 
     def op12(self, instruction):
-        return None
+        self.mmu.write(self.combineTwoChar(self.regD, self.regE), self.regA)
+        return 8
 
     def op13(self, instruction):
-        return None
+        self.regD, self.regE = self.increment8bitRegisterPairAs16bitValue(self.regD, self.regE)
+        return 8
 
     def op14(self, instruction):
         return None
@@ -375,14 +394,18 @@ class Cpu():
         return None
 
     def op21(self, instruction):
-        self.loadSplit16BitImmediateto8BitRegisterPair(6, 7, instruction[2], instruction[1])
+        self.regH = instruction[2]
+        self.regL = instruction[1]
         return 12
 
     def op22(self, instruction):
-        return None
+        self.mmu.write(self.combineTwoChar(self.regH, self.regL), self.regA)
+        self.RegH, self.RegL = self.increment8bitRegisterPairAs16bitValue(self.regH, self.regL)
+        return 8
 
     def op23(self, instruction):
-        return None
+        self.regH, self.regL = self.increment8bitRegisterPairAs16bitValue(self.regH, self.regL)
+        return 8
 
     def op24(self, instruction):
         return None
@@ -394,7 +417,7 @@ class Cpu():
         return None
 
     def op27(self, instruction):
-        self.registers[0] = self.DAA(self.registers[0])
+        self.regA = self.DAA(self.regA)
         return 4
 
     def op28(self, instruction):
@@ -425,14 +448,17 @@ class Cpu():
         return None
 
     def op31(self, instruction):
-        self.loadSplit16BitImmediateto16BitRegister(8, instruction[2], instruction[1])
+        self.regSP = self.combineTwoChar(instruction[2], instruction[1])
         return 12
 
     def op32(self, instruction):
-        return None
+        self.mmu.write(self.combineTwoChar(self.regH, self.regL), self.regA)
+        self.RegH, self.RegL = self.decrement8bitRegisterPairAs16bitValue(self.regH, self.regL)
+        return 8
 
     def op33(self, instruction):
-        return None
+        self.regSP += 1
+        return 8
 
     def op34(self, instruction):
         return None
@@ -804,10 +830,8 @@ class Cpu():
         return None
 
     def opaf(self, instruction):
-        self.registerBinaryXorRegisterA(0)
-        self.setBit
-        return 4 
-
+        return None
+    
     def opb0(self, instruction):
         return None
 
@@ -953,8 +977,7 @@ class Cpu():
         return None
 
     def ope0(self, instruction):
-        self.writeRegisterAtoHighMemoryOffset(instruction[1])
-        return 12
+        return None
 
     def ope1(self, instruction):
         return None
