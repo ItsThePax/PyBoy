@@ -22,7 +22,8 @@ def do_cpu(reg, interrupts):
             addr = (reg['pc'] - 0x4000) + (0x4000 * cpu.mmu.rom_bank)
             debug.l.write(hex(addr))
         else:
-            debug.l.write("N\A")
+            debug.l.write("N\A ")
+        debug.l.write(f'Rom Bank:{hex(cpu.mmu.rom_bank)} Ram bank:{hex(cpu.mmu.ram_bank)}')
         debug.l.write('\n')
         debug.debug_log(length, debug.l, b, reg)
     reg['pc'] += length
@@ -127,7 +128,7 @@ def main():
     start_logging = 0x100000
     div = 0
     timer = 0
-    boot_loader = 'DMG_ROM.bin'
+    boot_loader = 'DMG_quickboot.bin'
     filename = 'tetris.gb'
     cpu.loadboot(boot_loader)
     cpu.load(filename)
@@ -137,10 +138,10 @@ def main():
     reg = {'a': 0, 'f': 0, 'b': 0, 'c': 0, 'd': 0, 'e': 0, 'h': 0, 'l': 0, 'sp': 0, 'pc': 0, 'clock': 0}
     interrupt_state = [0, 0, 0]
     while 1:
-        #if gpu.frame == 1200:
-        #    break
-        #if gpu.frame == 1100:
-        #    debug.level = 0
+        if gpu.frame == 1200:
+            break
+        if gpu.frame == 1100:
+            debug.level = 1
         if reg['pc'] == start_logging:
             debug.level = 1
         cpu.run = do_interrupts(cpu.run, reg, interrupt_state)

@@ -221,7 +221,7 @@ def write_mc3(clock, addr, value):
     elif 0x2000 <= addr <= 0x4000:
             rom_bank = value
     elif 0x4000 <= addr < 0x6000:
-            ram_bank = value % 3
+            ram_bank = value
     elif 0x6000 <= addr < 0x8000:
         return 0 #TODO implement RTC
     elif 0x8000 <= addr < 0xa000:

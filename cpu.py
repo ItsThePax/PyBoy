@@ -20,7 +20,7 @@ def load(file):
         mmu.cartrage_type = 0
     elif mmu.cart[0x0147] in [1, 2, 3]:
         mmu.cartrage_type = 1
-    elif 0xf <= mmu.cart[0x0147] in [12, 13]:
+    elif 0xf <= mmu.cart[0x0147] in [0x12, 0x13]:
         mmu.cartrage_type = 3
     mmu.rom_size = mmu.cart[0x0148]
     mmu.ram_size = mmu.cart[0x0149]
@@ -1916,17 +1916,27 @@ def op_b7(register, b, interrupts):
 
 
 def op_b8(register, b, interrupts):
-    register['f'] = 0
-    if register['a'] - register['b'] == 0:
-        register['f'] |= 0x80
-    register['f'] |= 0x40
-    if (register['a'] & 0xf) < (register['b'] & 0xf):
-        register['f'] |= 0x20
-    if register['a'] < register['b']:
-        register['f'] &= ~0x10
-    else:
-        register['f'] |= 0x10
+    register['f'] = 0x40
+    temp = register['a'] - register['b']
+    if register['a'] & 0xf - register['b'] & 0xf:
+        register['f'] += 20
+    if temp < 0:
+        register['f'] += 0x10
+    if temp == 0:
+        register['f'] += 0x80
     return 8
+
+#    register['f'] = 0
+#    if register['a'] - register['b'] == 0:
+#        register['f'] |= 0x80
+#    register['f'] |= 0x40
+#    if (register['a'] & 0xf) < (register['b'] & 0xf):
+#        register['f'] |= 0x20
+#    if register['a'] < register['b']:
+#        register['f'] &= ~0x10
+#    else:
+#        register['f'] |= 0x10
+#    return 8
 
 
 def op_b9(register, b, interrupts):
