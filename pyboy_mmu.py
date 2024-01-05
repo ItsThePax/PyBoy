@@ -1,5 +1,7 @@
 import random
 
+random.seed()
+
 class Mmu:
     mmuType = 0
 
@@ -70,11 +72,11 @@ class Mmu:
         self.biosRom = bytes(self.loadFile(biosRomPath))
 
         #set up functions for correct memory controller version
-        self.ReadWriteFunctionMapping = {
+        self.readWriteFunctionMapping = {
             0: {"read":self.readMemoryController0WithBios, "write":self.writeMemoryController0},
             1: {"read":None, "write":None} #placeholder
         }
 
         self.mmuType = self.rawReadCartridge(0x147)
-        self.read = self.ReadWriteFunctionMapping[self.mmuType]["read"]
-        self.write = self.ReadWriteFunctionMapping[self.mmuType]["write"]
+        self.read = self.readWriteFunctionMapping[self.mmuType]["read"]
+        self.write = self.readWriteFunctionMapping[self.mmuType]["write"]

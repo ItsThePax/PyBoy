@@ -1,22 +1,197 @@
 import pyboy_mmu
 
+#static masks for easy bit manipulation
+setBitMasks = bytes([0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80])
+resetBitMasks = bytes([0xfe, 0xfd, 0xfb,  0xf7, 0xef, 0xdf, 0xbf, 0x7f])
+flagBitMasks = bytes([0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0])
+
+#flag mappings
+flagZero = 0x80
+flagSub = 0x40
+flagHalfCarry = 0x20
+flagCarry = 0x10
+flagNone = 0x0
+
+
+#type 0 for native 16 bit, type 1 for 8 bit register pair
+class register16bit:
+    def __init__(self, type):
+        if type == 0:
+            self.read = self.read16
+            self.load = self.load16
+            self.value = bytearray([0, 0])
+        elif type == 1:
+            self.high = register8bit()
+            self.low = register8bit()
+            self.read = self.readPair
+            self.load = self.loadPair
+
+    
+    def readPair(self):
+        return self.high.read() << 8 | self.low.read()
+    
+    def loadPair(self, newValue):
+        self.high.load(newValue >> 8)
+        self.low.load(newValue & 0xff)
+    
+    def read16(self):
+        return self.value[0] << 8 | self.value[1]
+    
+    def load16(self, newValue):
+        self.value[0] = newValue >> 8
+        self.value[1] = newValue & 0xff
+    
+    #add with flag logic
+    def add(self, add, flags, flagMask):
+        flagMask <<= 4
+        oldFlags = flags.read()
+        newFlags = 0
+        value = self.read()
+        if (value & 0xfff) + (add & 0xfff) > 0xfff:
+            newFlags += flagHalfCarry
+        value += add
+        if value > 0xffff:
+            newFlags += flagCarry
+            value &= 0xffff
+        self.load(value)
+        newFlags &= flagMask
+        oldFlags &= (flagMask ^ 0xff)
+        flags.load(newFlags | oldFlags)
+
+    #add without flag logic
+    def rawAdd(self, add):
+        self.load((self.read() + add) & 0xffff)
+
+    #sub with flag logic
+    def sub(self, sub, flags, flagMask):
+        self.rawSub(sub)#TODO fix
+
+    #sub without flag logic
+    def rawSub(self, sub):
+        self.load((self.read() - sub) & 0xffff)
+
+    def inc(self):#TODO write better
+        self.rawAdd(1)
+
+    def dec(self,):#TODO write better
+        self.rawSub(1)
+
+
+class register8bit:
+    def __init__(self):
+        self.value = bytearray([0])
+
+    def read(self):
+        return self.value[0]
+    
+    def load(self, newValue):
+        self.value[0] = newValue
+
+    def setBit(self, bitNumber):
+        self.value[0] |= setBitMasks[bitNumber]
+
+    def resetBit(self, bitNumber):
+        self.value[0] &= resetBitMasks[bitNumber]
+
+
+    def getBit(self, bitNumber, flags, flagMask):
+        flagMask >>= 4
+        oldFlags = flags.read()
+        newFlags = flagHalfCarry
+        if self.value[0] & setBitMasks[bitNumber] == 0:
+            newFlags += flagZero
+        newFlags &= flagMask
+        oldFlags &= (flagMask ^ 0xff)
+        flags.load(newFlags | oldFlags)
+
+
+    def swap(self, flags): #no flag mask, alsways affects all flags
+        temp = self.value[0] & 0xf << 4
+        self.value[0] >>= 4
+        self.value[0] += temp
+        if self.value[0] == 0:
+            flags.write(flagZero)
+        else:
+            flags.write(flagNone)
+
+
+    def add(self, add, flags, flagMask): 
+        flagMask <<= 4
+        oldFlags = flags.read()
+        newFlags = 0
+        if (add & 0xf) + (self.value[0] & 0xf) > 0xf:
+            newFlags += flagHalfCarry
+        temp = add + self.value[0]
+        if temp > 0xff:
+            newFlags += flagCarry
+            temp &= 0xff
+        if temp == 0:
+            newFlags += flagZero
+        self.value[0] = temp
+        newFlags &= flagMask
+        oldFlags &= (flagMask ^ 0xff)
+        flags.load(newFlags | oldFlags)
+
+
+    def rawAdd(self, add): #no flag logic
+        temp = self.value[0] + add
+        self.value[0] = temp & 0xff
+
+
+    def sub(self, sub, flags, flagMask):
+        flagMask <<= 4
+        oldFlags = flags.read()
+        newFlags = flagSub
+        if (self.value[0] & 0xf) - (sub & 0xf) < 0:
+            newFlags += flagHalfCarry
+        temp = self.value[0] - sub
+        if temp < 0:
+            newFlags += flagCarry
+            temp &= 0xff
+        if temp == 0:
+            newFlags += flagZero
+        self.value[0] = temp
+        newFlags &= flagMask
+        oldFlags &= (flagMask ^ 0xff)
+        flags.load(newFlags | oldFlags)
+
+
+    def rawSub(self, sub):#no flag logic
+        temp = self.value[0] - sub
+        self.value[0] = temp & 0xff
+
+
+    def inc(self, flags, flagMask):#todo write dedicated function
+        self.add(1, flags, flagMask)
+
+
+    def dec(self, flags, flagMask):#todo write dedicated function
+        self.sub(1, flags, flagMask)
+        
+
 class Cpu():
     def __init__(self, cartridgeRomPath, biosRomPath):
         #registers
-        #f: Z S C H X X X X        
+        #f: Z S H C X X X X        
         #a 0, f 1, b 2, c 3, d 4, e 5, h 6, l 7
-        self.registers = bytearray([0, 0, 0, 0, 0, 0, 0, 0])
-        self.regA = self.registers[0]
-        self.regF = self.registers[1]
-        self.regB = self.registers[2]
-        self.regC = self.registers[3]
-        self.regD = self.registers[4]
-        self.regE = self.registers[5]
-        self.regH = self.registers[6]
-        self.regL = self.registers[7]
-        self.regSP = 0
-        self.regPC = 0
+        self.regAF = register16bit(1)
+        self.regBC = register16bit(1)
+        self.regDE = register16bit(1)
+        self.regHL = register16bit(1)
+        self.regSP = register16bit(0)
+        self.regPC = register16bit(0)
+        self.regA = self.regAF.high
+        self.regF = self.regAF.low
+        self.regB = self.regBC.high
+        self.regC = self.regBC.low
+        self.regD = self.regDE.high
+        self.regE = self.regDE.low
+        self.regH = self.regHL.high
+        self.regL = self.regHL.low
 
+        #used for opcodes operating on (HL)
+        self.regDeRef = register8bit()
+        
 
         #table of function references
         self.opcodeFunctions = [
@@ -46,13 +221,14 @@ class Cpu():
             self.opb8, self.opb9, self.opba, self.opbb, self.opbc, self.opbd, self.opbe, self.opbf, 
             self.opc0, self.opc1, self.opc2, self.opc3, self.opc4, self.opc5, self.opc6, self.opc7, 
             self.opc8, self.opc9, self.opca, self.opcb, self.opcc, self.opcd, self.opce, self.opcf, 
-            self.opd0, self.opd1, self.opd2, self.opd3, self.opd4, self.opd5, self.opd6, self.opd7, 
-            self.opd8, self.opd9, self.opda, self.opdb, self.opdc, self.opdd, self.opde, self.opdf, 
-            self.ope0, self.ope1, self.ope2, self.ope3, self.ope4, self.ope5, self.ope6, self.ope7, 
-            self.ope8, self.ope9, self.opea, self.opeb, self.opec, self.oped, self.opee, self.opef, 
-            self.opf0, self.opf1, self.opf2, self.opf3, self.opf4, self.opf5, self.opf6, self.opf7, 
-            self.opf8, self.opf9, self.opfa, self.opfb, self.opfc, self.opfd, self.opfe, self.opff
+            self.opd0, self.opd1, self.opd2, self.invalidOp, self.opd4, self.opd5, self.opd6, self.opd7, 
+            self.opd8, self.opd9, self.opda, self.invalidOp, self.opdc, self.invalidOp, self.opde, self.opdf, 
+            self.ope0, self.ope1, self.ope2, self.invalidOp, self.invalidOp, self.ope5, self.ope6, self.ope7, 
+            self.ope8, self.ope9, self.opea, self.invalidOp, self.invalidOp, self.invalidOp, self.opee, self.opef, 
+            self.opf0, self.opf1, self.opf2, self.opf3, self.invalidOp, self.opf5, self.opf6, self.opf7, 
+            self.opf8, self.opf9, self.opfa, self.opfb, self.invalidOp, self.invalidOp, self.opfe, self.opff
         ]
+
 
         self.opcodeLength = [
             1, 3, 1, 1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 1,
@@ -73,10 +249,9 @@ class Cpu():
             2, 1, 1, 1, 4, 1, 2, 1, 2, 1, 3, 1, 4, 4, 2, 1
         ]
 
-
-        #static masks for easy bit manupulation
-        self.setBitMasks = bytes([0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80])
-        self.resetBitMasks = bytes([0xfe, 0xfd, 0xfb,  0xf7, 0xef, 0xdf, 0xbf, 0x7f])
+    
+      
+        
         
         #next instruction decode buffer
         self.nextInstruction = bytearray([0, 0, 0])
@@ -86,80 +261,86 @@ class Cpu():
         return
     
 
+    run = 1
+
+
+    def reset(self):
+        self.regAF.load(0)
+        self.regBC.load(0)
+        self.regDE.load(0)
+        self.regHL.load(0)
+        self.regSP.load(0)
+        self.regPC.load(0)
+        self.regDeRef.load(0)
+
+
     def getState(self):
         return "A:{} F:{} B:{} C:{} D:{} E:{} H:{} L:{} SP:{} PC:{}".format(
-                hex(self.regA), hex(self.regF), hex(self.regB), hex(self.regC),
-                hex(self.regD), hex(self.regE), hex(self.regH), hex(self.regL), 
-                hex(self.regSP), hex(self.regPC))
+                hex(self.regA.read()), hex(self.regF.read()), hex(self.regB.read()), hex(self.regC.read()),
+                hex(self.regD.read()), hex(self.regE.read()), hex(self.regH.read()), hex(self.regL.read()), 
+                hex(self.regSP.read()), hex(self.regPC.read()))
     
 
     def setCarryFlag(self):
-        self.setBitInByte(self.regF, 4)
+        self.regF.setBit(4)
 
 
     def resetCarryFlag(self):
-        self.resetBitInByte(self.regF, 4)
+        self.regF.resetBit(4)
 
 
     def setHalfCarryFlag(self):
-        self.setBitInByte(self.regF, 5)
+        self.regF.setBit(5)
 
 
     def resetHalfCarryFlag(self):
-        self.resetBitInByte(self.regF, 5)
+        self.regF.resetBit(5)
 
 
     def setSubtractionFlag(self):
-        self.setBitInByte(self.regF, 6)
+        self.regF.setBit(6)
 
 
     def resetSubtractionFlag(self):
-        self.resetBitInByte(self.regF, 6)
+        self.regF.resetBit(6)
 
 
     def setZeroFlag(self):
-        self.setBitInByte(self.regF, 7)
+        self.regF.setBit(7)
 
 
     def resetZeroFlag(self):
-        self.resetBitInByte(self.regF, 7)
+        self.regF.resetBit(7)
 
 
     def clearFlags(self):
-        self.regF = 0
-    
-
-    def setBitInByte(self, target, bit):
-        target |= self.setBitMasks[bit]
-
-    
-    def resetBitInByte(self, target, bit):
-        target &= self.resetBitMasks[bit]
+        self.regF.load(0)
 
 
-    def getBitSetInByte(self, target, bit):
-        result = 0
-        if target & self.setBitMasks[bit]:
-            result += 1
-        return result
-
-
+    #legacy fucntion, still used by DAA
     def unpackFlags(self):
+        fValue = self.regF.read()
         flags = bytearray([0, 0, 0, 0])
         for i in range(0, 3,):
-            flags[i] = self.getBitSetInByte(self.regF, 7 - i)
+            if fValue & setBitMasks[7 - i]:
+                flags[i] = 1
         return flags
     
+
+    #legacy function, still used by DAA
     # should be passed lenth 4 array/list ordered Z N H C
     def packFlags(self, flags):
-        temp = 0
+        fValue = 0
         for i in range(4):
             if flags[i]:
-                temp += self.setBitMasks[7- i]
-        return temp
+                fValue += setBitMasks[7- i]
+        return fValue
 
 
-
+    def toSigned(value): #stolen from gengkev on stackoverflow
+        value &= 0xff
+        return (value ^ 0x80) - 0x80
+    
 
     def printState(self):
         print (self.getState())
@@ -171,20 +352,23 @@ class Cpu():
             print (hex(self.nextInstruction[i]), end=" ")
         print("")
     pni = printNextInstruction
+
     
     def executeNextInstruction(self):
         ticks = self.opcodeFunctions[self.nextInstruction[0]](self.nextInstruction)
-        self.registers[9] += self.opcodeLength[self.nextInstruction[0]]
+        self.regPC.rawAdd(self.opcodeLength[self.nextInstruction[0]])
         return ticks
     eni = executeNextInstruction
     
 
     def fetchNextInstruction(self):
+        pc = self.regPC.read()
         instruction = bytearray([0, 0, 0])
         for i in range(3): 
-            instruction[i] = self.mmu.read(self.regPC + i)
+            instruction[i] = self.mmu.read(pc + i)
         self.nextInstruction = instruction
     fni = fetchNextInstruction
+
 
     def fetchAndExecuteNextInstruction(self):
         self.fetchNextInstruction()
@@ -193,6 +377,7 @@ class Cpu():
     
     
     #DAA instruction logic. I hate this ##TODO## make me not hate this
+    #legacy function writeen before implementing flag masks, handles own flag logic so flag mask not needed
     def DAA(self, x):
         flags = self.unpackFlags()
         flags[0] = 0
@@ -239,7 +424,7 @@ class Cpu():
             x &= 0xff
             if x == 0:
                 flags[0] = 1
-            self.regF = self.packFlags(flags)
+            self.regF.write(self.packFlags(flags))
             return x
 
 
@@ -252,140 +437,140 @@ class Cpu():
 
     #split 16 bit value and return upper and lower char
     def splitShort(self, short):
-        return bytes(short >> 8, short & 0xff)
+        return bytes(short >> 8, short & 0xff)  
 
-
-    def increment8bitRegisterPairAs16bitValue(self, registerHigh, registerLow):
-        temp = self.combineTwoChar(registerHigh, registerLow)
-        if temp == 0xffff:
-            return 0, 0
-        return self.splitShort(temp + 1)
-    
-
-    def decrement8bitRegisterPairAs16bitValue(self, registerHigh, registerLow):
-        temp = self.combineTwoChar(registerHigh, registerLow)
-        if temp == 0:
-            return 0xff, 0xff
-        return self.splitShort(temp - 1)
-    
-
-    def increment8bitRegister(self, register):
-        self.resetSubtractionFlag()
-        if register &0xf == 0xf:
-            self.setHalfCarryFlag()
-        else:
-            self.resetHalfCarryFlag()
-        if register == 0xff:
-            self.setZeroFlag()
-            return 0
-        else:
-            self.resetZeroFlag()
-            return register + 1
-
-            
-    
 
     #cpu intruction functions
     def op00(self, instruction):
         return 4
     
     def op01(self, instruction):
-        self.regB = instruction[2]
-        self.regC = instruction[1]
+        value = instruction[2] << 8 | instruction[1]
+        self.regBC.load(value)
         return 12
     
     def op02(self, instruction):
-        self.mmu.write(self.combineTwoChar(self.regB, self.regC), self.regA)
+        addr = self.regBC.read()
+        self.mmu.write(addr, self.regA.read())
         return 8
 
     def op03(self, instruction):
-        self.regB, self.regC = self.increment8bitRegisterPairAs16bitValue(self.regB, self.regC)
+        self.regBC.inc()
         return 8
 
     def op04(self, instruction):
-        return None
+        self.regB.inc(self.regF, 0xe)
+        return 4
 
     def op05(self, instruction):
-        return None
+        self.regB.dec(self.regF, 0xe)
+        return 4
 
     def op06(self, instruction):
-        return None
+        self.regB.load(instruction[1])
+        return 8
 
     def op07(self, instruction):
         return None
 
     def op08(self, instruction):
-        return None
+        address = instruction[2] << 8 | instruction[1]
+        sp = self.regSP.read()
+        self.mmu.write(address, sp & 0xff)
+        self.mmu.write(address + 1, sp >> 8)
+        self.regSP.rawSub(2)
+        return 20
 
     def op09(self, instruction):
-        return None
-
+        self.regHL.add(self.regBC.read(), self.regF, 0x7)
+        return 8
+    
     def op0a(self, instruction):
-        return None
+        self.regA.load(self.mmu.read(self.regBC.read()))
+        return 8
 
     def op0b(self, instruction):
-        return None
+        self.regBC.dec()
+        return 0
 
     def op0c(self, instruction):
-        return None
+        self.regC.inc(self.regF, 0xe)
+        return 4
 
     def op0d(self, instruction):
-        return None
+        self.regC.dec(self.regF, 0xe)
+        return 4
 
     def op0e(self, instruction):
-        return None
+        self.regC.load(instruction[1])
+        return 8
 
     def op0f(self, instruction):
         return None
 
     def op10(self, instruction):
-        return None
+        self.run = 0
+        print("STOP")
+        return 4
 
     def op11(self, instruction):
-        self.regD = instruction[2]
-        self.regE = instruction[1]
+        value = instruction[2] << 8 | instruction[1]
+        self.regDE.load(value)
         return 12
 
     def op12(self, instruction):
-        self.mmu.write(self.combineTwoChar(self.regD, self.regE), self.regA)
+        addr = self.regDE.read()
+        self.mmu.write(addr, self.regA.read())
         return 8
 
     def op13(self, instruction):
-        self.regD, self.regE = self.increment8bitRegisterPairAs16bitValue(self.regD, self.regE)
+        self.regDE.inc()
         return 8
 
     def op14(self, instruction):
-        return None
+        self.regD.inc(self.regF, 0xe)
+        return 4
 
     def op15(self, instruction):
-        return None
+        self.regD.dec(self.regF, 0xe)
+        return 4
 
     def op16(self, instruction):
-        return None
+        self.regD.load(instruction[1])
+        return 8
 
     def op17(self, instruction):
         return None
 
-    def op18(self, instruction):
-        return None
+    def op18(self, instruction): #this is a little janky, but register.add() wont work reliable with negative numbers ##TODO test this is might be bad
+        if instruction[0] & 0x80: #number is negative and we must sub
+            self.regPC.rawSub(abs(self.toSigned(instruction[1])))
+        else: #number is positive and we must add
+            self.regPC.rawAdd(instruction[1])
+        return 12
 
     def op19(self, instruction):
-        return None
+        self.regHL.add(self.regDE.read(), self.regF, 0x7)
+        return 8
 
     def op1a(self, instruction):
-        return None
+        self.regA.load(self.mmu.read(self.regDE.read()))
+        return 8
 
     def op1b(self, instruction):
         return None
 
     def op1c(self, instruction):
-        return None
+        self.regE.inc(self.regF, 0xe)
+        return 4
 
     def op1d(self, instruction):
-        return None
+        self.regE.dec(self.regF, 0xe)
+        return 4
 
     def op1e(self, instruction):
-        return None
+        self.regE.load(instruction[1])
+        return 8
 
     def op1f(self, instruction):
         return None
@@ -394,52 +579,61 @@ class Cpu():
         return None
 
     def op21(self, instruction):
-        self.regH = instruction[2]
-        self.regL = instruction[1]
+        value = instruction[2] << 8 | instruction[1]
+        self.regHL.load(value)
         return 12
 
     def op22(self, instruction):
-        self.mmu.write(self.combineTwoChar(self.regH, self.regL), self.regA)
-        self.RegH, self.RegL = self.increment8bitRegisterPairAs16bitValue(self.regH, self.regL)
+        addr = self.regDE.read()
+        self.mmu.write(addr, self.regA.read())
+        self.regHL.inc()
         return 8
 
     def op23(self, instruction):
-        self.regH, self.regL = self.increment8bitRegisterPairAs16bitValue(self.regH, self.regL)
+        self.regHL.inc()
         return 8
 
     def op24(self, instruction):
-        return None
+        self.regH.inc(self.regF, 0xe)
+        return 4
 
     def op25(self, instruction):
-        return None
+        self.regH.dec(self.regF, 0xe)
+        return 4
 
     def op26(self, instruction):
-        return None
+        self.regH.load(instruction[1])
+        return 8
 
     def op27(self, instruction):
-        self.regA = self.DAA(self.regA)
-        return 4
+        return None
 
     def op28(self, instruction):
         return None
 
     def op29(self, instruction):
-        return None
+        self.regHL.add(self.regHL.read(), self.regF, 0x7)
+        return 8
 
     def op2a(self, instruction):
-        return None
+        self.regA.load(self.mmu.read(self.regHL.read()))
+        self.regHL.inc()
+        return 8
 
     def op2b(self, instruction):
         return None
 
     def op2c(self, instruction):
-        return None
+        self.regL.inc(self.regF, 0xe)
+        return 4
 
     def op2d(self, instruction):
-        return None
+        self.regL.dec(self.regF, 0xe)
+        return 4
 
     def op2e(self, instruction):
-        return None
+        self.regL.load(instruction[1])
+        return 8
 
     def op2f(self, instruction):
         return None
@@ -448,26 +642,35 @@ class Cpu():
         return None
 
     def op31(self, instruction):
-        self.regSP = self.combineTwoChar(instruction[2], instruction[1])
+        value = instruction[2] << 8 | instruction[1]
+        self.regSP.load(value)
         return 12
 
     def op32(self, instruction):
-        self.mmu.write(self.combineTwoChar(self.regH, self.regL), self.regA)
-        self.RegH, self.RegL = self.decrement8bitRegisterPairAs16bitValue(self.regH, self.regL)
+        addr = self.regDE.read()
+        self.mmu.write(addr, self.regA.read())
+        self.regHL.dec()
         return 8
 
     def op33(self, instruction):
-        self.regSP += 1
+        self.regSP.inc()
         return 8
 
     def op34(self, instruction):
-        return None
-
+        self.regDeRef.load(self.mmu.read(self.regHL.read()))
+        self.regDeRef.inc(self.regF, 0xe)
+        self.mmu.write(self.regHL.read(), self.regDeRef.read())
+        return 12
+    
     def op35(self, instruction):
-        return None
+        self.regDeRef.load(self.mmu.read(self.regHL.read()))
+        self.regDeRef.dec(self.regF, 0xe)
+        self.mmu.write(self.regHL.read(), self.regDeRef.read())
+        return 12
 
     def op36(self, instruction):
-        return None
+        self.mmu.write(self.regHL.read(), instruction[1])
+        return 
 
     def op37(self, instruction):
         return None
@@ -476,22 +679,28 @@ class Cpu():
         return None
 
     def op39(self, instruction):
-        return None
+        self.regHL.add(self.regSP.read(), self.regF, 0x7)
+        return 8
 
     def op3a(self, instruction):
-        return None
+        self.regA.load(self.mmu.read(self.regHL.read()))
+        self.regHL.dec()
+        return 8
 
     def op3b(self, instruction):
         return None
 
     def op3c(self, instruction):
-        return None
+        self.regA.inc(self.regF, 0xe)
+        return 4
 
     def op3d(self, instruction):
-        return None
+        self.regA.dec(self.regF, 0xe)
+        return 4
 
     def op3e(self, instruction):
-        return None
+        self.regA.load(instruction[1])
+        return 8
 
     def op3f(self, instruction):
         return None
@@ -1072,15 +1281,8 @@ class Cpu():
     def opff(self, instruction):
         return None
     
-    
-
-
-    
-
-
-
-      
-
-
-    
+    def invalidOp(self, instruction):
+        print("invalid Opcode called")
+        self.run = 0
+        return None
     
