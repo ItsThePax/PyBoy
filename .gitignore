@@ -3,6 +3,7 @@
 log.txt
 memdump.bin
 **/__pycache__/
+DMG_rom.bin
 
 #'illegal' rom files
 *.gb

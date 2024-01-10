@@ -5,6 +5,15 @@ random.seed()
 class Mmu:
     mmuType = 0
 
+    #reset mmu to power-on state
+    def reset(self):
+        self.read = self.readWriteFunctionMapping[self.mmuType]["read"]
+        self.memory = bytearray([])
+        for i in range(0x10000):
+            self.memory.append(random.randint(0x0, 0xff))
+
+
+
     #opens a file and returns the entire contents ~~DONT ABUSE~~
     def loadFile(self, filename):
         with open(filename, 'rb') as f:
