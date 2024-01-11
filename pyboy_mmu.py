@@ -3,6 +3,27 @@ import random
 random.seed()
 
 class Mmu:
+    def __init__(self, cartridgeRomPath, biosRomPath):
+        #set up randomized memory
+        self.memory = bytearray([])
+        for i in range(0x10000):
+            #self.memory.append(random.randint(0x0, 0xff))
+            self.memory.append(0)
+        
+        #load cartridge and bios files
+        self.cartridgeRom = bytes(self.loadFile(cartridgeRomPath))
+        self.biosRom = bytes(self.loadFile(biosRomPath))
+
+        #set up functions for correct memory controller version
+        self.readWriteFunctionMapping = {
+            0: {"read":self.readMemoryController0WithBios, "write":self.writeMemoryController0},
+            1: {"read":None, "write":None} #placeholder
+        }
+
+        self.mmuType = self.rawReadCartridge(0x147)
+        self.read = self.readWriteFunctionMapping[self.mmuType]["read"]
+        self.write = self.readWriteFunctionMapping[self.mmuType]["write"]
+    
     mmuType = 0
 
     #reset mmu to power-on state
@@ -37,14 +58,14 @@ class Mmu:
     
     #use this function to read after bios has been disabled
     def readMemoryControler0(self, address):
-        if address & 0x8000:
+        if address > 0x7fff:
             if address & 0xe000 == 0xa000:
                 return 0xff
             else:
                 return self.memory[address]
         else:
             return self.cartridgeRom[address]
-        
+
     #write to mc0 #TOTO make this not suck later
     def writeMemoryController0(self, address, value):
         if value > 0xff:
@@ -70,22 +91,4 @@ class Mmu:
 
    
 
-    def __init__(self, cartridgeRomPath, biosRomPath):
-        #set up randomized memory
-        self.memory = bytearray([])
-        for i in range(0x10000):
-            self.memory.append(random.randint(0x0, 0xff))
-        
-        #load cartridge and bios files
-        self.cartridgeRom = bytes(self.loadFile(cartridgeRomPath))
-        self.biosRom = bytes(self.loadFile(biosRomPath))
-
-        #set up functions for correct memory controller version
-        self.readWriteFunctionMapping = {
-            0: {"read":self.readMemoryController0WithBios, "write":self.writeMemoryController0},
-            1: {"read":None, "write":None} #placeholder
-        }
-
-        self.mmuType = self.rawReadCartridge(0x147)
-        self.read = self.readWriteFunctionMapping[self.mmuType]["read"]
-        self.write = self.readWriteFunctionMapping[self.mmuType]["write"]
+    

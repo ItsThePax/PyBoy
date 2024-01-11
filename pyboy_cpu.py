@@ -1,9 +1,10 @@
 import pyboy_mmu
+import debug
 
 #static masks for easy bit manipulation
 setBitMasks = bytes([0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80])
 resetBitMasks = bytes([0xfe, 0xfd, 0xfb,  0xf7, 0xef, 0xdf, 0xbf, 0x7f])
-flagBitMasks = bytes([0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0])
+
 
 #flag mappings
 flagZero = 0x80
@@ -26,7 +27,6 @@ class register16bit:
             self.read = self.readPair
             self.load = self.loadPair
 
-    
     def readPair(self):
         return self.high.read() << 8 | self.low.read()
     
@@ -70,9 +70,11 @@ class register16bit:
     def rawSub(self, sub):
         self.load((self.read() - sub) & 0xffff)
 
+    #add 1, never uses flags
     def inc(self):#TODO write better
         self.rawAdd(1)
 
+    #sub 1, never uses flags
     def dec(self,):#TODO write better
         self.rawSub(1)
 
@@ -618,10 +620,12 @@ class Cpu():
 
 
     def printNextInstruction(self):
-        print(f'PC is at:{hex(self.regPC.read())}', end=" ")
+        print("")
+        print(f'PC is at:{hex(self.regPC.read())}', end=" --- ")
         for i in range(self.opcodeLength[self.nextInstruction[0]]):
             print (hex(self.nextInstruction[i]), end=" ")
-        print("")
+        registers = [self.regSP.read(), self.regPC.read()]
+        print(f'--- {debug.formatOpcodeName(self.nextInstruction, self.opcodeLength[self.nextInstruction[0]], registers)}')
     pni = printNextInstruction
 
     
@@ -717,7 +721,7 @@ class Cpu():
         return 4
     
     def op01(self, instruction):
-        value = instruction[2] << 8 | instruction[1]
+        value = self.combineTwoChar(instruction[2], instruction[1])
         self.regBC.load(value)
         return 12
     
@@ -747,11 +751,11 @@ class Cpu():
         return 4
 
     def op08(self, instruction):
-        address = instruction[2] << 8 | instruction[1]
+        address = self.combineTwoChar(instruction[2], instruction[1])
         sp = self.regSP.read()
-        self.mmu.write(address, sp & 0xff)
-        self.mmu.write(address + 1, sp >> 8)
-        self.regSP.rawSub(2)
+        sph, spl = self.splitShort(sp)
+        self.mmu.write(address, spl)
+        self.mmu.write(address + 1, sph)
         return 20
 
     def op09(self, instruction):
@@ -788,7 +792,7 @@ class Cpu():
         return 4
 
     def op11(self, instruction):
-        value = instruction[2] << 8 | instruction[1]
+        value = self.combineTwoChar(instruction[2], instruction[1])
         self.regDE.load(value)
         return 12
 
@@ -867,7 +871,7 @@ class Cpu():
         return 12
 
     def op22(self, instruction):
-        addr = self.regDE.read()
+        addr = self.regHL.read()
         self.mmu.write(addr, self.regA.read())
         self.regHL.inc()
         return 8
@@ -945,7 +949,7 @@ class Cpu():
         return 12
 
     def op32(self, instruction):
-        addr = self.regDE.read()
+        addr = self.regHL.read()
         self.mmu.write(addr, self.regA.read())
         self.regHL.dec()
         return 8
