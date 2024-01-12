@@ -2,8 +2,14 @@ import numpy as np
 import pygame
 import time
 
-bitMasks = [0x80, 0x40, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1]
-valueToColorMapping = [0xff, 0x56, 0x29, 0x0]
+
+interruptVblank = 0x01
+interruptLCDC = 0x02
+bitMasks = bytes([0x80, 0x40, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1])
+valueToColorMapping = bytes([0xff, 0x56, 0x29, 0x0])
+setBitMasks = bytes([0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80])
+resetBitMasks = bytes([0xfe, 0xfd, 0xfb,  0xf7, 0xef, 0xdf, 0xbf, 0x7f])
+
 
 class DMG_gpu():
     def __init__(self, mmu):
@@ -87,12 +93,13 @@ class DMG_gpu():
         self.screen.blit(surf, ((0, 0)))
         self.clock.tick(self.FPS)
         pygame.display.update()
-        pygame.event.get()
+        self.getControls()
         self.frame += 1
         if self.frame % 60 == 0:
             self.t1 = time.time()
             print((1/(self.t1 - self.t0)) * 60)
             self.t0 = time.time()
+        self.mmu.write(0xff0f, self.mmu.read(0xff0f) | interruptVblank)
 
 
     def renderLine(self, lineNumber):
@@ -123,7 +130,8 @@ class DMG_gpu():
                 if colorByteLow & bitMasks[j]:
                     temp += 1
                 colorData[(i * 4) + j] = valueToColorMapping[bgColorMap[temp]]
-        return colorData[0:160]           
+        return colorData[0:160]   
+       
 
     def renderLineDB(self, lineNumber):
         pixelData = bytearray(64)
@@ -162,19 +170,45 @@ class DMG_gpu():
                     temp += 1
                 colorData[(i * 4) + j] = valueToColorMapping[bgColorMap[temp]]
             print(f'color data this tile is {colorData[i * 4:(i * 4) + 4]}')
-        return colorData[0:160]        
-
-        
-        
-
-            
-        
-
-        
+        return colorData[0:160]   
 
 
-
-        
-
-    
-
+    def getControls(self):
+        events = pygame.event.get()
+        for event in events:
+            if event.type == 768:
+                if event.key == 97: #a
+                    self.mmu.buttons &= resetBitMasks[0]
+                    print (f"detected A, {self.mmu.buttons}")
+                elif event.key == 115: #b
+                    self.mmu.buttons &= resetBitMasks[1]
+                elif event.key == 32: #select
+                    self.mmu.buttons &= resetBitMasks[2]
+                elif event.key == 13: #start
+                    self.mmu.buttons &= resetBitMasks[3]
+                elif event.key == 1073741903: #right
+                    self.mmu.Dpad &= resetBitMasks[0]
+                elif event.key == 1073741904: #left
+                    self.mmu.Dpad &= resetBitMasks[1]
+                elif event.key == 1073741906: #up
+                    self.mmu.Dpad &= resetBitMasks[2]
+                elif event.key == 1073741905: #down
+                    self.mmu.Dpad &= resetBitMasks[3]
+                self.mmu.write(0xff0f,  self.mmu.read(0xff0f) | 0x10)
+            elif event.type == 769:
+                if event.key == 97: #a
+                    self.mmu.buttons |= setBitMasks[0]
+                elif event.key == 115: #b
+                    self.mmu.buttons |= setBitMasks[1]
+                elif event.key == 32: #select
+                    self.mmu.buttons |= setBitMasks[2]
+                elif event.key == 13: #start
+                    self.mmu.buttons |= setBitMasks[3]
+                elif event.key == 1073741903: #right
+                    self.mmu.Dpad |= setBitMasks[0]
+                elif event.key == 1073741904: #left
+                    self.mmu.Dpad |= setBitMasks[1]
+                elif event.key == 1073741906: #up
+                    self.mmu.Dpad |= setBitMasks[2]
+                elif event.key == 1073741905: #down
+                    self.mmu.Dpad |= setBitMasks[3]    

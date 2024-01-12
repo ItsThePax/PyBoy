@@ -24,30 +24,49 @@ class Mmu:
         self.read = self.readWriteFunctionMapping[self.mmuType]["read"]
         self.write = self.readWriteFunctionMapping[self.mmuType]["write"]
     
+
     mmuType = 0
+    #controls
+    buttons = 0xf
+    Dpad = 0xf
+
 
     #reset mmu to power-on state
     def reset(self):
+        self.buttons = 0xf
+        self.Dpad = 0xf
         self.read = self.readWriteFunctionMapping[self.mmuType]["read"]
         self.memory = bytearray([])
         for i in range(0x10000):
             self.memory.append(random.randint(0x0, 0xff))
 
 
-
     #opens a file and returns the entire contents ~~DONT ABUSE~~
     def loadFile(self, filename):
         with open(filename, 'rb') as f:
             return f.read()
+        
+
+    def getControls(self):
+        temp = self.memory[0xff00]
+        if temp & 0x10:
+            if temp & 0x20:
+                return self.memory[0xff00] | 0xff
+            return self.memory[0xff00] | self.DPAD
+        return self.memory[0xff00] | self.buttons
+            
+
 
     #direct read access to cartridgeRom   
     def rawReadCartridge(self, address):
         return self.cartridgeRom[address]
     
+
     #direct write access to cartridgeRom
     def rawWriteCartridge(self, address, value):
         self.cartridgeRom[address] = value & 0xff
     
+
     #MC0
     #use this fucntion to read while bios is active
     def readMemoryController0WithBios(self, address):
@@ -56,6 +75,7 @@ class Mmu:
         else:
             return self.readMemoryControler0(address)
     
+
     #use this function to read after bios has been disabled
     def readMemoryControler0(self, address):
         if address > 0x7fff:
@@ -65,6 +85,7 @@ class Mmu:
                 return self.memory[address]
         else:
             return self.cartridgeRom[address]
+
 
     #write to mc0 #TOTO make this not suck later
     def writeMemoryController0(self, address, value):
@@ -84,11 +105,9 @@ class Mmu:
         elif 0xfe00 <= address < 0xfea0:
             self.memory[address] = value
         elif 0xff00 <= address < 0x10000:
+            if address == 0xff00:
+                self.memory[0xff00] = value & 0xf0
             if address == 0xff50:
                 self.read = self.readMemoryControler0
             else:
                 self.memory[address] = value
-
-   
-
-    

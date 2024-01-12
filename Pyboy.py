@@ -1,26 +1,26 @@
-import pygame
 import sys
+import random
 import pyboy_cpu
 import pyboy_gpu
-import random
+import pyboy_interrupt
 
 
 random.seed()
 
 
-biosFile = "DMG_rom.bin"
+biosFile = "DMG_quickboot.bin"
 cartridgeFile = "tetris.gb"
 
 
 class Pyboy:
-    def __init__(self, model, cartridgeFile, biosFile):
+    def __init__(self, cartridgeFile, biosFile):
         #for now model hard coding to DMG original monochrome gameboy
-        model = "DMG"
-        if model == "DMG":
-            self.cpu = pyboy_cpu.Cpu(cartridgeFile, biosFile)
-            self.mmu = self.cpu.mmu
-            self.gpu = pyboy_gpu.DMG_gpu(self.mmu)
-       
+        self.cpu = pyboy_cpu.Cpu(cartridgeFile, biosFile)
+        self.mmu = self.cpu.mmu
+        self.gpu = pyboy_gpu.DMG_gpu(self.mmu)
+        self.interrupts = pyboy_interrupt.InterruptHandler(self.cpu, self.mmu)
+        self.cpu.interrupts = self.interrupts
+
     
     def run(self):
         while (True): #run forever until error or break
@@ -33,19 +33,36 @@ class Pyboy:
                 self.cpu.ps()
 
     
-    def runto(self, target): #must match pc exactly
+    def runTo(self, target): #must match pc exactly
         if self.cpu.regPC.read() == target:
             self.step()
         while self.cpu.regPC.read() != target:
             self.step()
 
 
+    def runToDB(self, target): #must match pc exactly
+        if self.cpu.regPC.read() == target:
+            self.step()
+            self.cpu.ps()
+        while self.cpu.regPC.read() != target:
+            self.step()
+            self.cpu.ps()
+
+
     def step(self):
+        ticks = self.interrupts.step()
         if self.cpu.run == 1:
-            ticks = self.cpu.step()
+            ticks += self.cpu.step()
         else:
-            ticks = 4
+            ticks += 4
         self.gpu.step(ticks)
+
+
+    def stepOver(self):
+        if self.cpu.nextInstruction[0] in [0x18, 0xc3, 0xc7, 0xcf, 0xd7, 0xdf, 0xe7, 0xef, 0xf7, 0xff]:
+            self.step()
+        else:
+            self.runTo(self.cpu.regPC.read() + self.cpu.opcodeLength[self.cpu.nextInstruction[0]])
 
 
     def stepDB(self):
@@ -55,24 +72,35 @@ class Pyboy:
         self.cpu.ps()
 
 
+    def stepOverDB(self):
+        self.cpu.fni() #netch next instruction
+        self.cpu.pni() #print next instruction
+        if self.cpu.nextInstruction[0] in [0x18, 0xc3, 0xc7, 0xcf, 0xd7, 0xdf, 0xe7, 0xef, 0xf7, 0xff]:
+            self.step()
+        else:
+            self.runTo(self.cpu.regPC.read() + self.cpu.opcodeLength[self.cpu.nextInstruction[0]])
+        self.cpu.ps()
+
+
     def reset(self):
         self.cpu.reset()
         self.mmu.reset()
         self.gpu.reset()
+        self.interrupts.reset()
 
 
 def main(cartridgeFile, biosFile):
-    a = Pyboy("DMG", cartridgeFile, biosFile)
+    a = Pyboy(cartridgeFile, biosFile)
     a.run()
     
 
-def create(biosFile,  cartridgeFile):
-    return Pyboy (biosFile,  cartridgeFile)
+def create(cartridgeFile, biosFile):
+    return Pyboy (cartridgeFile, biosFile,)
 
 
 def cd(): #CreateDefault
-    global biosFile, cartridgeFile
-    return Pyboy("DMG", biosFile,  cartridgeFile)
+    global cartridgeFile, biosFile
+    return Pyboy(cartridgeFile, biosFile)
 
 
 def runQuickTest():
@@ -104,4 +132,4 @@ def fuzz():
 
 
 if __name__ == "__main__":
-   sys.exit(main(biosFile, cartridgeFile))   
+   sys.exit(main(cartridgeFile, biosFile))   

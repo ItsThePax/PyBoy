@@ -1,4 +1,5 @@
 import pyboy_mmu
+
 import debug
 
 #static masks for easy bit manipulation
@@ -496,7 +497,7 @@ class Cpu():
         self.nextInstruction = bytearray([0, 0, 0])
         
         #setup mmu
-        self.mmu = pyboy_mmu.Mmu(biosRomPath, cartridgeRomPath)
+        self.mmu = pyboy_mmu.Mmu(cartridgeRomPath, biosRomPath)
         return
     
     
@@ -506,10 +507,9 @@ class Cpu():
     halt = 0
 
     #interrupt master enable
-    IME = 0 #TODO check default state at startup
+    DI = 0
+    EI = 0
 
-    #store old interrupt master enable when entering interrupt
-    oldIME = 0 
 
     #debugging
     def reset(self):
@@ -520,11 +520,26 @@ class Cpu():
         self.regSP.load(0)
         self.regPC.load(0)
         self.regDeRef.load(0)
+        self.run = 1
+        self.stop = 0
+        self.halt = 0
+        self.EI = 0
+        self.DI = 0
         
 
-
     def getState(self):
-        return f"A:0x{self.regA.read():02x} F:0x{self.regF.read():02x} B:0x{self.regB.read():02x} C:0x{self.regC.read():02x} D:0x{self.regD.read():02x} E:0x{self.regE.read():02x} H:0x{self.regH.read():02x} L:0x{self.regL.read():02x} SP:0x{self.regSP.read():04x} PC:0x{self.regPC.read():04x}"
+        return (
+            f"A:0x{self.regA.read():02x} " 
+            f"F:0x{self.regF.read():02x} "
+            f"B:0x{self.regB.read():02x} "
+            f"C:0x{self.regC.read():02x} " 
+            f"D:0x{self.regD.read():02x} " 
+            f"E:0x{self.regE.read():02x} " 
+            f"H:0x{self.regH.read():02x} " 
+            f"L:0x{self.regL.read():02x} " 
+            f"SP:0x{self.regSP.read():04x} " 
+            f"PC:0x{self.regPC.read():04x}"
+        )
     
     
     #bit fiddleing
@@ -625,7 +640,10 @@ class Cpu():
         for i in range(self.opcodeLength[self.nextInstruction[0]]):
             print (hex(self.nextInstruction[i]), end=" ")
         registers = [self.regSP.read(), self.regPC.read()]
-        print(f'--- {debug.formatOpcodeName(self.nextInstruction, self.opcodeLength[self.nextInstruction[0]], registers)}')
+        print(f'--- {debug.formatOpcodeName(
+            self.nextInstruction, 
+            self.opcodeLength[self.nextInstruction[0]], registers)}'
+        )
     pni = printNextInstruction
 
     
@@ -650,7 +668,20 @@ class Cpu():
         return self.executeNextInstruction()
     feni = fetchAndExecuteNextInstruction
     step = fetchAndExecuteNextInstruction
-    
+
+
+    def serviceInterrupt(self, vector):
+        sp = self.regSP.read()
+        pch, pcl = self.splitShort(self.regPC.read())
+        self.mmu.write(sp - 1, pch)
+        self.mmu.write(sp - 2, pcl)
+        self.regPC.load(vector)
+        self.regSP.rawSub(2)
+        self.mmu.write(0xff0f, 0)
+        return 24
+        
+
+
     
     #DAA instruction logic. I hate this ##TODO## make me not hate this
     #legacy function writeen before implementing flag masks, handles own flag logic so flag mask not needed
@@ -1721,7 +1752,7 @@ class Cpu():
         sp = self.regSP.read()
         self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
         self.regSP.rawAdd(2)
-        self.IME = self.oldIME
+        self.interrupts.IME = 1
         return 16
 
     def opda(self, instruction):
@@ -1836,7 +1867,7 @@ class Cpu():
         return 12
 
     def opf3(self, instruction):
-        self.IME = 0
+        self.DI = 1
         return 4
 
     def opf5(self, instruction):
@@ -1882,7 +1913,7 @@ class Cpu():
         return 16
 
     def opfb(self, instruction):
-        self.IME = 1
+        self.EI = 1
         return 4
 
     def opfe(self, instruction):
