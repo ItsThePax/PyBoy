@@ -14,40 +14,34 @@ cartridgeFile = "tetris.gb"
 
 class Pyboy:
     def __init__(self, cartridgeFile, biosFile):
-        #for now model hard coding to DMG original monochrome gameboy
         self.cpu = pyboy_cpu.Cpu(cartridgeFile, biosFile)
         self.mmu = self.cpu.mmu
         self.gpu = pyboy_gpu.DMG_gpu(self.mmu)
         self.interrupts = pyboy_interrupt.InterruptHandler(self.cpu, self.mmu)
         self.cpu.interrupts = self.interrupts
-
     
     def run(self):
-        while (True): #run forever until error or break
+        while (True):  # run forever until error or break
             self.step()
     
-
     def runDB(self):
             while True:
                 self.step()
                 self.cpu.ps()
 
-    
-    def runTo(self, target): #must match pc exactly
+    def runTo(self, target):  # must match pc exactly
         if self.cpu.regPC.read() == target:
             self.step()
         while self.cpu.regPC.read() != target:
             self.step()
 
-
-    def runToDB(self, target): #must match pc exactly
+    def runToDB(self, target):  # must match pc exactly
         if self.cpu.regPC.read() == target:
             self.step()
             self.cpu.ps()
         while self.cpu.regPC.read() != target:
             self.step()
             self.cpu.ps()
-
 
     def step(self):
         ticks = self.interrupts.step()
@@ -57,30 +51,30 @@ class Pyboy:
             ticks += 4
         self.gpu.step(ticks)
 
-
     def stepOver(self):
-        if self.cpu.nextInstruction[0] in [0x18, 0xc3, 0xc7, 0xcf, 0xd7, 0xdf, 0xe7, 0xef, 0xf7, 0xff]:
+        if self.cpu.nextInstruction[0] in [0x18, 0xc3, 0xc7, 0xcf, 0xd7, 
+                                           0xdf, 0xe7, 0xef, 0xf7, 0xff]:
             self.step()
         else:
-            self.runTo(self.cpu.regPC.read() + self.cpu.opcodeLength[self.cpu.nextInstruction[0]])
-
+            self.runTo(self.cpu.regPC.read() 
+                       + self.cpu.opcodeLength[self.cpu.nextInstruction[0]])
 
     def stepDB(self):
-        self.cpu.fni() #netch next instruction
-        self.cpu.pni() #print next instruction
+        self.cpu.fni() # fetch next instruction
+        self.cpu.pni() # print next instruction
         self.step()
         self.cpu.ps()
 
-
     def stepOverDB(self):
-        self.cpu.fni() #netch next instruction
-        self.cpu.pni() #print next instruction
-        if self.cpu.nextInstruction[0] in [0x18, 0xc3, 0xc7, 0xcf, 0xd7, 0xdf, 0xe7, 0xef, 0xf7, 0xff]:
+        self.cpu.fni() # fetch next instruction
+        self.cpu.pni() # print next instruction
+        if self.cpu.nextInstruction[0] in [0x18, 0xc3, 0xc7, 0xcf, 0xd7, 
+                                           0xdf, 0xe7, 0xef, 0xf7, 0xff]:
             self.step()
         else:
-            self.runTo(self.cpu.regPC.read() + self.cpu.opcodeLength[self.cpu.nextInstruction[0]])
+            self.runTo(self.cpu.regPC.read() 
+                       + self.cpu.opcodeLength[self.cpu.nextInstruction[0]])
         self.cpu.ps()
-
 
     def reset(self):
         self.cpu.reset()

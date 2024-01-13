@@ -1,10 +1,12 @@
 import pyboy_mmu
-
 import debug
 
+
 #static masks for easy bit manipulation
-setBitMasks = bytes([0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80])
-resetBitMasks = bytes([0xfe, 0xfd, 0xfb,  0xf7, 0xef, 0xdf, 0xbf, 0x7f])
+setBitMasks = bytes([0x1, 0x2, 0x4, 0x8, 
+                     0x10, 0x20, 0x40, 0x80])
+resetBitMasks = bytes([0xfe, 0xfd, 0xfb, 0xf7, 
+                       0xef, 0xdf, 0xbf, 0x7f])
 
 
 #flag mappings
@@ -16,15 +18,15 @@ flagNone = 0x0
 
 
 #type 0 for native 16 bit, type 1 for 8 bit register pair
-class register16bit:
+class Register16bit:
     def __init__(self, regType):
         if regType == 0:
             self.read = self.read16
             self.load = self.load16
             self.value = bytearray([0, 0])
         elif regType == 1:
-            self.high = register8bit()
-            self.low = register8bit()
+            self.high = Register8bit()
+            self.low = Register8bit()
             self.read = self.readPair
             self.load = self.loadPair
 
@@ -80,7 +82,7 @@ class register16bit:
         self.rawSub(1)
 
 
-class register8bit:
+class Register8bit:
     def __init__(self):
         self.value = bytearray([0])
 
@@ -105,7 +107,6 @@ class register8bit:
         newFlags &= flagMask
         oldFlags &= (flagMask ^ 0xff)
         flags.load(newFlags | oldFlags)
-
 
     def add(self, add, flags, flagMask): 
         flagMask <<= 4
@@ -143,11 +144,9 @@ class register8bit:
         oldFlags &= (flagMask ^ 0xff)
         flags.load(newFlags | oldFlags)
 
-
     def rawAdd(self, add): #no flag logic
         temp = self.value[0] + add
         self.value[0] = temp & 0xff
-
 
     def sub(self, sub, flags, flagMask):
         flagMask <<= 4
@@ -165,7 +164,6 @@ class register8bit:
         newFlags &= flagMask
         oldFlags &= (flagMask ^ 0xff)
         flags.load(newFlags | oldFlags)
-
 
     def sbc(self, sub, flags, flagMask):
         flagMask <<= 4
@@ -186,19 +184,15 @@ class register8bit:
         oldFlags &= (flagMask ^ 0xff)
         flags.load(newFlags | oldFlags)
 
-
     def rawSub(self, sub):#no flag logic
         temp = self.value[0] - sub
         self.value[0] = temp & 0xff
 
-
     def inc(self, flags, flagMask):#todo write dedicated function
         self.add(1, flags, flagMask)
 
-
     def dec(self, flags, flagMask):#todo write dedicated function
         self.sub(1, flags, flagMask)
-
 
     def band(self, binAnd, flags): #always use all flags
         self.value[0] &= binAnd
@@ -242,7 +236,6 @@ class register8bit:
             flags.load(flagNone)
             self.value[0] = temp
 
-
     def rl(self, flags):
         newFlags = 0
         c = flags.read() & flagCarry
@@ -255,7 +248,6 @@ class register8bit:
         if self.value[0] == 0:
             newFlags += flagZero
         flags.load(newFlags)
-
 
     def rlc(self, flags):
         newFlags = 0
@@ -270,7 +262,6 @@ class register8bit:
                 newFlags |= flagZero
         flags.load(newFlags)
 
-
     def rla(self, flags):
         c = flags.read() & flagCarry
         if self.value[0] & 0x80:
@@ -282,7 +273,6 @@ class register8bit:
         if c:
             self.value[0] += 1
             
-
     def rrca(self, flags):
         temp = 0
         if self.value[0] & 0x1:
@@ -292,7 +282,6 @@ class register8bit:
             flags.load(flagNone)
         self.value[0] >>= 1
         self.value[0] += temp
-
 
     def rrc(self, flags):
         newFlags = 0
@@ -305,8 +294,7 @@ class register8bit:
             if self.value[0] == 0:
                 newFlags |= flagZero
         flags.load(newFlags)
-        
-            
+               
     def rra(self, flags):
         c = flags.read() & flagCarry
         if self.value[0] & 0x1:
@@ -316,7 +304,6 @@ class register8bit:
         self.value[0] >>= 1
         if c:
             self.value[0] |= setBitMasks[7]
-
 
     def rr(self, flags):
         c = flags.read() & flagCarry
@@ -330,7 +317,6 @@ class register8bit:
             newFlags |= flagZero
         flags.load(newFlags)
 
-
     def sla(self, flags):
         newFlags = 0
         if self.value[0] & 0x80:
@@ -340,7 +326,6 @@ class register8bit:
         if self.value[0] == 0:
             newFlags |= flagZero
         flags.load(newFlags)
-
 
     def sra(self, flags):
         newFlags = 0
@@ -353,7 +338,6 @@ class register8bit:
             newFlags |= flagZero
         flags.load(newFlags)
 
-
     def srl(self, flags):
         newFlags = 0
         if self.value[0] & 0x1:
@@ -362,7 +346,6 @@ class register8bit:
         if self.value[0] == 0:
             newFlags |= flagZero
         flags.load(newFlags)
-
 
     def swap(self, flags): #no flag mask, alsways affects all flags
         temp = self.value[0] & 0xf << 4
@@ -379,12 +362,12 @@ class Cpu():
         #registers
         #f: Z S H C X X X X        
         #a 0, f 1, b 2, c 3, d 4, e 5, h 6, l 7
-        self.regAF = register16bit(1)
-        self.regBC = register16bit(1)
-        self.regDE = register16bit(1)
-        self.regHL = register16bit(1)
-        self.regSP = register16bit(0)
-        self.regPC = register16bit(0)
+        self.regAF = Register16bit(1)
+        self.regBC = Register16bit(1)
+        self.regDE = Register16bit(1)
+        self.regHL = Register16bit(1)
+        self.regSP = Register16bit(0)
+        self.regPC = Register16bit(0)
         self.regA = self.regAF.high
         self.regF = self.regAF.low
         self.regB = self.regBC.high
@@ -395,81 +378,144 @@ class Cpu():
         self.regL = self.regHL.low
 
         #used for opcodes operating on (HL)
-        self.regDeRef = register8bit()
+        self.regDeRef = Register8bit()
         
-
         #table of function references
         self.opcodeFunctions = [
-            self.op00, self.op01, self.op02, self.op03, self.op04, self.op05, self.op06, self.op07, 
-            self.op08, self.op09, self.op0a, self.op0b, self.op0c, self.op0d, self.op0e, self.op0f, 
-            self.op10, self.op11, self.op12, self.op13, self.op14, self.op15, self.op16, self.op17, 
-            self.op18, self.op19, self.op1a, self.op1b, self.op1c, self.op1d, self.op1e, self.op1f, 
-            self.op20, self.op21, self.op22, self.op23, self.op24, self.op25, self.op26, self.op27, 
-            self.op28, self.op29, self.op2a, self.op2b, self.op2c, self.op2d, self.op2e, self.op2f, 
-            self.op30, self.op31, self.op32, self.op33, self.op34, self.op35, self.op36, self.op37, 
-            self.op38, self.op39, self.op3a, self.op3b, self.op3c, self.op3d, self.op3e, self.op3f, 
-            self.op40, self.op41, self.op42, self.op43, self.op44, self.op45, self.op46, self.op47, 
-            self.op48, self.op49, self.op4a, self.op4b, self.op4c, self.op4d, self.op4e, self.op4f, 
-            self.op50, self.op51, self.op52, self.op53, self.op54, self.op55, self.op56, self.op57, 
-            self.op58, self.op59, self.op5a, self.op5b, self.op5c, self.op5d, self.op5e, self.op5f, 
-            self.op60, self.op61, self.op62, self.op63, self.op64, self.op65, self.op66, self.op67, 
-            self.op68, self.op69, self.op6a, self.op6b, self.op6c, self.op6d, self.op6e, self.op6f, 
-            self.op70, self.op71, self.op72, self.op73, self.op74, self.op75, self.op76, self.op77, 
-            self.op78, self.op79, self.op7a, self.op7b, self.op7c, self.op7d, self.op7e, self.op7f, 
-            self.op80, self.op81, self.op82, self.op83, self.op84, self.op85, self.op86, self.op87, 
-            self.op88, self.op89, self.op8a, self.op8b, self.op8c, self.op8d, self.op8e, self.op8f, 
-            self.op90, self.op91, self.op92, self.op93, self.op94, self.op95, self.op96, self.op97, 
-            self.op98, self.op99, self.op9a, self.op9b, self.op9c, self.op9d, self.op9e, self.op9f, 
-            self.opa0, self.opa1, self.opa2, self.opa3, self.opa4, self.opa5, self.opa6, self.opa7, 
-            self.opa8, self.opa9, self.opaa, self.opab, self.opac, self.opad, self.opae, self.opaf, 
-            self.opb0, self.opb1, self.opb2, self.opb3, self.opb4, self.opb5, self.opb6, self.opb7, 
-            self.opb8, self.opb9, self.opba, self.opbb, self.opbc, self.opbd, self.opbe, self.opbf, 
-            self.opc0, self.opc1, self.opc2, self.opc3, self.opc4, self.opc5, self.opc6, self.opc7, 
-            self.opc8, self.opc9, self.opca, self.opcb, self.opcc, self.opcd, self.opce, self.opcf, 
-            self.opd0, self.opd1, self.opd2, self.invalidOp, self.opd4, self.opd5, self.opd6, self.opd7, 
-            self.opd8, self.opd9, self.opda, self.invalidOp, self.opdc, self.invalidOp, self.opde, self.opdf, 
-            self.ope0, self.ope1, self.ope2, self.invalidOp, self.invalidOp, self.ope5, self.ope6, self.ope7, 
-            self.ope8, self.ope9, self.opea, self.invalidOp, self.invalidOp, self.invalidOp, self.opee, self.opef, 
-            self.opf0, self.opf1, self.opf2, self.opf3, self.invalidOp, self.opf5, self.opf6, self.opf7, 
-            self.opf8, self.opf9, self.opfa, self.opfb, self.invalidOp, self.invalidOp, self.opfe, self.opff
+            self.op00, self.op01, self.op02, self.op03, 
+            self.op04, self.op05, self.op06, self.op07, 
+            self.op08, self.op09, self.op0a, self.op0b, 
+            self.op0c, self.op0d, self.op0e, self.op0f, 
+            self.op10, self.op11, self.op12, self.op13, 
+            self.op14, self.op15, self.op16, self.op17, 
+            self.op18, self.op19, self.op1a, self.op1b, 
+            self.op1c, self.op1d, self.op1e, self.op1f, 
+            self.op20, self.op21, self.op22, self.op23, 
+            self.op24, self.op25, self.op26, self.op27, 
+            self.op28, self.op29, self.op2a, self.op2b, 
+            self.op2c, self.op2d, self.op2e, self.op2f, 
+            self.op30, self.op31, self.op32, self.op33, 
+            self.op34, self.op35, self.op36, self.op37, 
+            self.op38, self.op39, self.op3a, self.op3b, 
+            self.op3c, self.op3d, self.op3e, self.op3f, 
+            self.op40, self.op41, self.op42, self.op43, 
+            self.op44, self.op45, self.op46, self.op47, 
+            self.op48, self.op49, self.op4a, self.op4b, 
+            self.op4c, self.op4d, self.op4e, self.op4f, 
+            self.op50, self.op51, self.op52, self.op53, 
+            self.op54, self.op55, self.op56, self.op57, 
+            self.op58, self.op59, self.op5a, self.op5b, 
+            self.op5c, self.op5d, self.op5e, self.op5f, 
+            self.op60, self.op61, self.op62, self.op63, 
+            self.op64, self.op65, self.op66, self.op67, 
+            self.op68, self.op69, self.op6a, self.op6b, 
+            self.op6c, self.op6d, self.op6e, self.op6f, 
+            self.op70, self.op71, self.op72, self.op73, 
+            self.op74, self.op75, self.op76, self.op77, 
+            self.op78, self.op79, self.op7a, self.op7b, 
+            self.op7c, self.op7d, self.op7e, self.op7f, 
+            self.op80, self.op81, self.op82, self.op83, 
+            self.op84, self.op85, self.op86, self.op87, 
+            self.op88, self.op89, self.op8a, self.op8b, 
+            self.op8c, self.op8d, self.op8e, self.op8f, 
+            self.op90, self.op91, self.op92, self.op93, 
+            self.op94, self.op95, self.op96, self.op97, 
+            self.op98, self.op99, self.op9a, self.op9b, 
+            self.op9c, self.op9d, self.op9e, self.op9f, 
+            self.opa0, self.opa1, self.opa2, self.opa3, 
+            self.opa4, self.opa5, self.opa6, self.opa7, 
+            self.opa8, self.opa9, self.opaa, self.opab, 
+            self.opac, self.opad, self.opae, self.opaf, 
+            self.opb0, self.opb1, self.opb2, self.opb3, 
+            self.opb4, self.opb5, self.opb6, self.opb7, 
+            self.opb8, self.opb9, self.opba, self.opbb, 
+            self.opbc, self.opbd, self.opbe, self.opbf, 
+            self.opc0, self.opc1, self.opc2, self.opc3, 
+            self.opc4, self.opc5, self.opc6, self.opc7, 
+            self.opc8, self.opc9, self.opca, self.opcb, 
+            self.opcc, self.opcd, self.opce, self.opcf, 
+            self.opd0, self.opd1, self.opd2, self.invalidOp, 
+            self.opd4, self.opd5, self.opd6, self.opd7, 
+            self.opd8, self.opd9, self.opda, self.invalidOp, 
+            self.opdc, self.invalidOp, self.opde, self.opdf, 
+            self.ope0, self.ope1, self.ope2, self.invalidOp, 
+            self.invalidOp, self.ope5, self.ope6, self.ope7, 
+            self.ope8, self.ope9, self.opea, self.invalidOp, 
+            self.invalidOp, self.invalidOp, self.opee, self.opef, 
+            self.opf0, self.opf1, self.opf2, self.opf3, 
+            self.invalidOp, self.opf5, self.opf6, self.opf7, 
+            self.opf8, self.opf9, self.opfa, self.opfb, 
+            self.invalidOp, self.invalidOp, self.opfe, self.opff
         ]
 
-
+        #table of cb functions
         self.cbFunctions = [
-            self.cb00, self.cb01, self.cb02, self.cb03, self.cb04, self.cb05, self.cb06, self.cb07, 
-            self.cb08, self.cb09, self.cb0a, self.cb0b, self.cb0c, self.cb0d, self.cb0e, self.cb0f, 
-            self.cb10, self.cb11, self.cb12, self.cb13, self.cb14, self.cb15, self.cb16, self.cb17, 
-            self.cb18, self.cb19, self.cb1a, self.cb1b, self.cb1c, self.cb1d, self.cb1e, self.cb1f, 
-            self.cb20, self.cb21, self.cb22, self.cb23, self.cb24, self.cb25, self.cb26, self.cb27, 
-            self.cb28, self.cb29, self.cb2a, self.cb2b, self.cb2c, self.cb2d, self.cb2e, self.cb2f, 
-            self.cb30, self.cb31, self.cb32, self.cb33, self.cb34, self.cb35, self.cb36, self.cb37, 
-            self.cb38, self.cb39, self.cb3a, self.cb3b, self.cb3c, self.cb3d, self.cb3e, self.cb3f, 
-            self.cb40, self.cb41, self.cb42, self.cb43, self.cb44, self.cb45, self.cb46, self.cb47, 
-            self.cb48, self.cb49, self.cb4a, self.cb4b, self.cb4c, self.cb4d, self.cb4e, self.cb4f, 
-            self.cb50, self.cb51, self.cb52, self.cb53, self.cb54, self.cb55, self.cb56, self.cb57, 
-            self.cb58, self.cb59, self.cb5a, self.cb5b, self.cb5c, self.cb5d, self.cb5e, self.cb5f, 
-            self.cb60, self.cb61, self.cb62, self.cb63, self.cb64, self.cb65, self.cb66, self.cb67, 
-            self.cb68, self.cb69, self.cb6a, self.cb6b, self.cb6c, self.cb6d, self.cb6e, self.cb6f, 
-            self.cb70, self.cb71, self.cb72, self.cb73, self.cb74, self.cb75, self.cb76, self.cb77, 
-            self.cb78, self.cb79, self.cb7a, self.cb7b, self.cb7c, self.cb7d, self.cb7e, self.cb7f, 
-            self.cb80, self.cb81, self.cb82, self.cb83, self.cb84, self.cb85, self.cb86, self.cb87, 
-            self.cb88, self.cb89, self.cb8a, self.cb8b, self.cb8c, self.cb8d, self.cb8e, self.cb8f, 
-            self.cb90, self.cb91, self.cb92, self.cb93, self.cb94, self.cb95, self.cb96, self.cb97, 
-            self.cb98, self.cb99, self.cb9a, self.cb9b, self.cb9c, self.cb9d, self.cb9e, self.cb9f, 
-            self.cba0, self.cba1, self.cba2, self.cba3, self.cba4, self.cba5, self.cba6, self.cba7, 
-            self.cba8, self.cba9, self.cbaa, self.cbab, self.cbac, self.cbad, self.cbae, self.cbaf, 
-            self.cbb0, self.cbb1, self.cbb2, self.cbb3, self.cbb4, self.cbb5, self.cbb6, self.cbb7, 
-            self.cbb8, self.cbb9, self.cbba, self.cbbb, self.cbbc, self.cbbd, self.cbbe, self.cbbf, 
-            self.cbc0, self.cbc1, self.cbc2, self.cbc3, self.cbc4, self.cbc5, self.cbc6, self.cbc7, 
-            self.cbc8, self.cbc9, self.cbca, self.cbcb, self.cbcc, self.cbcd, self.cbce, self.cbcf, 
-            self.cbd0, self.cbd1, self.cbd2, self.cbd3, self.cbd4, self.cbd5, self.cbd6, self.cbd7, 
-            self.cbd8, self.cbd9, self.cbda, self.cbdb, self.cbdc, self.cbdd, self.cbde, self.cbdf, 
-            self.cbe0, self.cbe1, self.cbe2, self.cbe3, self.cbe4, self.cbe5, self.cbe6, self.cbe7, 
-            self.cbe8, self.cbe9, self.cbea, self.cbeb, self.cbec, self.cbed, self.cbee, self.cbef, 
-            self.cbf0, self.cbf1, self.cbf2, self.cbf3, self.cbf4, self.cbf5, self.cbf6, self.cbf7, 
-            self.cbf8, self.cbf9, self.cbfa, self.cbfb, self.cbfc, self.cbfd, self.cbfe, self.cbff]
+            self.cb00, self.cb01, self.cb02, self.cb03, 
+            self.cb04, self.cb05, self.cb06, self.cb07, 
+            self.cb08, self.cb09, self.cb0a, self.cb0b, 
+            self.cb0c, self.cb0d, self.cb0e, self.cb0f, 
+            self.cb10, self.cb11, self.cb12, self.cb13, 
+            self.cb14, self.cb15, self.cb16, self.cb17, 
+            self.cb18, self.cb19, self.cb1a, self.cb1b, 
+            self.cb1c, self.cb1d, self.cb1e, self.cb1f, 
+            self.cb20, self.cb21, self.cb22, self.cb23, 
+            self.cb24, self.cb25, self.cb26, self.cb27, 
+            self.cb28, self.cb29, self.cb2a, self.cb2b, 
+            self.cb2c, self.cb2d, self.cb2e, self.cb2f, 
+            self.cb30, self.cb31, self.cb32, self.cb33, 
+            self.cb34, self.cb35, self.cb36, self.cb37, 
+            self.cb38, self.cb39, self.cb3a, self.cb3b, 
+            self.cb3c, self.cb3d, self.cb3e, self.cb3f, 
+            self.cb40, self.cb41, self.cb42, self.cb43, 
+            self.cb44, self.cb45, self.cb46, self.cb47, 
+            self.cb48, self.cb49, self.cb4a, self.cb4b, 
+            self.cb4c, self.cb4d, self.cb4e, self.cb4f, 
+            self.cb50, self.cb51, self.cb52, self.cb53, 
+            self.cb54, self.cb55, self.cb56, self.cb57, 
+            self.cb58, self.cb59, self.cb5a, self.cb5b, 
+            self.cb5c, self.cb5d, self.cb5e, self.cb5f, 
+            self.cb60, self.cb61, self.cb62, self.cb63, 
+            self.cb64, self.cb65, self.cb66, self.cb67, 
+            self.cb68, self.cb69, self.cb6a, self.cb6b, 
+            self.cb6c, self.cb6d, self.cb6e, self.cb6f, 
+            self.cb70, self.cb71, self.cb72, self.cb73, 
+            self.cb74, self.cb75, self.cb76, self.cb77, 
+            self.cb78, self.cb79, self.cb7a, self.cb7b, 
+            self.cb7c, self.cb7d, self.cb7e, self.cb7f, 
+            self.cb80, self.cb81, self.cb82, self.cb83, 
+            self.cb84, self.cb85, self.cb86, self.cb87, 
+            self.cb88, self.cb89, self.cb8a, self.cb8b, 
+            self.cb8c, self.cb8d, self.cb8e, self.cb8f, 
+            self.cb90, self.cb91, self.cb92, self.cb93, 
+            self.cb94, self.cb95, self.cb96, self.cb97, 
+            self.cb98, self.cb99, self.cb9a, self.cb9b, 
+            self.cb9c, self.cb9d, self.cb9e, self.cb9f, 
+            self.cba0, self.cba1, self.cba2, self.cba3, 
+            self.cba4, self.cba5, self.cba6, self.cba7, 
+            self.cba8, self.cba9, self.cbaa, self.cbab, 
+            self.cbac, self.cbad, self.cbae, self.cbaf, 
+            self.cbb0, self.cbb1, self.cbb2, self.cbb3, 
+            self.cbb4, self.cbb5, self.cbb6, self.cbb7, 
+            self.cbb8, self.cbb9, self.cbba, self.cbbb, 
+            self.cbbc, self.cbbd, self.cbbe, self.cbbf, 
+            self.cbc0, self.cbc1, self.cbc2, self.cbc3, 
+            self.cbc4, self.cbc5, self.cbc6, self.cbc7, 
+            self.cbc8, self.cbc9, self.cbca, self.cbcb, 
+            self.cbcc, self.cbcd, self.cbce, self.cbcf, 
+            self.cbd0, self.cbd1, self.cbd2, self.cbd3, 
+            self.cbd4, self.cbd5, self.cbd6, self.cbd7, 
+            self.cbd8, self.cbd9, self.cbda, self.cbdb, 
+            self.cbdc, self.cbdd, self.cbde, self.cbdf, 
+            self.cbe0, self.cbe1, self.cbe2, self.cbe3, 
+            self.cbe4, self.cbe5, self.cbe6, self.cbe7, 
+            self.cbe8, self.cbe9, self.cbea, self.cbeb, 
+            self.cbec, self.cbed, self.cbee, self.cbef, 
+            self.cbf0, self.cbf1, self.cbf2, self.cbf3, 
+            self.cbf4, self.cbf5, self.cbf6, self.cbf7, 
+            self.cbf8, self.cbf9, self.cbfa, self.cbfb, 
+            self.cbfc, self.cbfd, self.cbfe, self.cbff]
 
-
+        #table of opcodelengths
         self.opcodeLength = [
             1, 3, 1, 1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 1,
             1, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1,
@@ -489,17 +535,12 @@ class Cpu():
             2, 1, 1, 1, 4, 1, 2, 1, 2, 1, 3, 1, 4, 4, 2, 1
         ]
 
-    
-      
-        
-        
         #next instruction decode buffer
         self.nextInstruction = bytearray([0, 0, 0])
         
         #setup mmu
         self.mmu = pyboy_mmu.Mmu(cartridgeRomPath, biosRomPath)
         return
-    
     
     #is the cpu in a running state
     run = 1
@@ -524,8 +565,7 @@ class Cpu():
         self.stop = 0
         self.halt = 0
         self.EI = 0
-        self.DI = 0
-        
+        self.DI = 0 
 
     def getState(self):
         return (
@@ -541,67 +581,53 @@ class Cpu():
             f"PC:0x{self.regPC.read():04x}"
         )
     
-    
     #bit fiddleing
     def setCarryFlag(self):
         self.regF.setBit(4)
 
-
     def resetCarryFlag(self):
         self.regF.resetBit(4)
-
 
     def getCarryFlag(self):
         if self.regF.read() & flagCarry:
             return 1
         return 0
 
-
     def setHalfCarryFlag(self):
         self.regF.setBit(5)
 
-
     def resetHalfCarryFlag(self):
         self.regF.resetBit(5)
-
 
     def getHalfCarryFlag(self):
         if self.regF.read() & flagHalfCarry:
             return 1
         return 0
 
-
     def setSubtractionFlag(self):
         self.regF.setBit(6)
 
-
     def resetSubtractionFlag(self):
         self.regF.resetBit(6)
-
 
     def getSubtractionFlag(self):
         if self.regF.read() & flagSub:
             return 1
         return 0
 
-
     def setZeroFlag(self):
         self.regF.setBit(7)
 
-
     def resetZeroFlag(self):
         self.regF.resetBit(7)
-
     
     def getZeroFlag(self):
         if self.regF.read() & flagZero:
             return 1
         return 0
 
-
     def clearFlags(self):
         self.regF.load(0)
-
 
     #legacy fucntion, still used by DAA
     def unpackFlags(self):
@@ -612,7 +638,6 @@ class Cpu():
                 flags[i] = 1
         return flags
     
-
     #legacy function, still used by DAA
     # should be passed lenth 4  bool array/list ordered Z N H C
     def packFlags(self, flags):
@@ -622,17 +647,14 @@ class Cpu():
                 fValue += setBitMasks[7- i]
         return fValue
 
-
     def toSigned(self, value): #stolen from gengkev on stackoverflow
         value &= 0xff
         return (value ^ 0x80) - 0x80
     
-
     #functions for running the CPU
     def printState(self):
         print (self.getState())
     ps = printState
-
 
     def printNextInstruction(self):
         print("")
@@ -640,20 +662,21 @@ class Cpu():
         for i in range(self.opcodeLength[self.nextInstruction[0]]):
             print (hex(self.nextInstruction[i]), end=" ")
         registers = [self.regSP.read(), self.regPC.read()]
-        print(f'--- {debug.formatOpcodeName(
+        opcodeString = debug.formatOpcodeName(
             self.nextInstruction, 
-            self.opcodeLength[self.nextInstruction[0]], registers)}'
+            self.opcodeLength[self.nextInstruction[0]], 
+            registers)
+        print(f'--- {opcodeString}'
         )
     pni = printNextInstruction
-
     
     def executeNextInstruction(self):
         self.regPC.rawAdd(self.opcodeLength[self.nextInstruction[0]])
-        cycles = self.opcodeFunctions[self.nextInstruction[0]](self.nextInstruction)
+        opcodeFunction = self.opcodeFunctions[self.nextInstruction[0]]
+        cycles = opcodeFunction(self.nextInstruction)
         return cycles
     eni = executeNextInstruction
     
-
     def fetchNextInstruction(self):
         pc = self.regPC.read()
         instruction = bytearray([0, 0, 0])
@@ -662,13 +685,11 @@ class Cpu():
         self.nextInstruction = instruction
     fni = fetchNextInstruction
 
-
     def fetchAndExecuteNextInstruction(self):
         self.fetchNextInstruction()
         return self.executeNextInstruction()
     feni = fetchAndExecuteNextInstruction
     step = fetchAndExecuteNextInstruction
-
 
     def serviceInterrupt(self, vector):
         sp = self.regSP.read()
@@ -680,60 +701,66 @@ class Cpu():
         self.mmu.write(0xff0f, 0)
         return 24
         
-
-
-    
     #DAA instruction logic. I hate this ##TODO## make me not hate this
-    #legacy function writeen before implementing flag masks, handles own flag logic so flag mask not needed
+    #legacy function writeen before implementing flag masks,
+    #handles own flag logic so flag mask not needed
     def DAA(self, x):
         flags = self.unpackFlags()
         flags[0] = 0
         xLowNibble = x & 0xf
         xHighNibble = x >> 4
         if flags[1] == 0:
-            if flags[3] == 0 and 0x0 <= xHighNibble <= 0x9 and flags[2] == 0 and 0x0 <= xLowNibble <= 0x9:
+            if ((flags[3] == 0 and 0x0 <= xHighNibble <= 0x9 and
+                flags[2] == 0 and 0x0 <= xLowNibble <= 0x9)):
                 pass
-            elif flags[3] == 0 and 0x0 <= xHighNibble <= 0x8 and flags[2] == 0 and 0xa <= xLowNibble <= 0xf:
+            elif ((flags[3] == 0 and 0x0 <= xHighNibble <= 0x8) and
+                  (flags[2] == 0 and 0xa <= xLowNibble <= 0xf)):
                 x += 0x6
-            elif flags[3] == 0 and 0x0 <= xHighNibble <= 0x9 and flags[2] == 1 and 0x0 <= xLowNibble <= 0x3:
+            elif ((flags[3] == 0 and 0x0 <= xHighNibble <= 0x9) and
+                  (flags[2] == 1 and 0x0 <= xLowNibble <= 0x3)):
                 x += 0x6
-            elif flags[3] == 0 and 0xa <= xHighNibble <= 0xf and flags[2] == 0 and 0x0 <= xLowNibble <= 0x9:
+            elif ((flags[3] == 0 and 0xa <= xHighNibble <= 0xf) and
+                  (flags[2] == 0 and 0x0 <= xLowNibble <= 0x9)):
                 x += 0x60
                 flags[3] = 1
-            elif flags[3] == 0 and 0x9 <= xHighNibble <= 0xf and flags[2] == 0 and 0xa <= xLowNibble <= 0xf:
+            elif ((flags[3] == 0 and 0x9 <= xHighNibble <= 0xf) and
+                  (flags[2] == 0 and 0xa <= xLowNibble <= 0xf)):
                 x += 0x66
                 flags[3] = 1
-            elif flags[3] == 0 and 0xa <= xHighNibble <= 0xf and flags[2] == 1 and 0x0 <= xLowNibble <= 0x3:
+            elif ((flags[3] == 0 and 0xa <= xHighNibble <= 0xf) and 
+                  (flags[2] == 1 and 0x0 <= xLowNibble <= 0x3)):
                 x += 0x66
                 flags[3] = 1
-            elif flags[3] == 1 and 0x0 <= xHighNibble <= 0x2 and flags[2] == 0 and 0x0 <= xLowNibble <= 0x9:
+            elif ((flags[3] == 1 and 0x0 <= xHighNibble <= 0x2) and 
+                  (flags[2] == 0 and 0x0 <= xLowNibble <= 0x9)):
                 x += 0x60
                 flags[3] = 1
-            elif flags[3] == 1 and 0x0 <= xHighNibble <= 0x2 and flags[2] == 0 and 0xa <= xLowNibble <= 0xf:
+            elif ((flags[3] == 1 and 0x0 <= xHighNibble <= 0x2) and 
+                  (flags[2] == 0 and 0xa <= xLowNibble <= 0xf)):
                 x += 0x66
                 flags[3] = 1
-            elif flags[3] == 1 and 0x0 <= xHighNibble <= 0x3 and flags[2] == 1 and 0x0 <= xLowNibble <= 0x3:
+            elif ((flags[3] == 1 and 0x0 <= xHighNibble <= 0x3) and 
+                  (flags[2] == 1 and 0x0 <= xLowNibble <= 0x3)):
                 x += 0x66
                 flags[3] = 1
-            x &= 0xff
-            if x == 0:
-                flags[0] = 1
-            return x
         else:
-            if flags[3] == 0 and 0x0 <= xHighNibble <= 0x9 and flags[2] == 0 and 0x0 <= xLowNibble <= 0x9:
+            if ((flags[3] == 0 and 0x0 <= xHighNibble <= 0x9) and 
+                (flags[2] == 0 and 0x0 <= xLowNibble <= 0x9)):
                 pass
-            elif flags[3] == 0 and 0x0 <= xHighNibble <= 0x8 and flags[2] == 1 and 0x6 <= xLowNibble <= 0xf:
+            elif ((flags[3] == 0 and 0x0 <= xHighNibble <= 0x8) and 
+                  (flags[2] == 1 and 0x6 <= xLowNibble <= 0xf)):
                 x += 0xfa
-            elif flags[3] == 1 and 0x7 <= xHighNibble <= 0xf and flags[2] == 0 and 0x0 <= xLowNibble <= 0x9:
+            elif ((flags[3] == 1 and 0x7 <= xHighNibble <= 0xf) and 
+                  (flags[2] == 0 and 0x0 <= xLowNibble <= 0x9)):
                 x += 0xa0
-            elif flags[3] == 1 and 0x6 <= xHighNibble <= 0xf and flags[2] == 1 and 0x6 <= xLowNibble <= 0xf:
+            elif ((flags[3] == 1 and 0x6 <= xHighNibble <= 0xf) and 
+                  (flags[2] == 1 and 0x6 <= xLowNibble <= 0xf)):
                 x += 0x9a
-            x &= 0xff
-            if x == 0:
-                flags[0] = 1
-            self.regF.load(self.packFlags(flags))
-            return x
-
+        x &= 0xff
+        if x == 0:
+            flags[0] = 1
+        self.regF.load(self.packFlags(flags))
+        return x
 
     #combine 2 char into short
     def combineTwoChar(self, highChar, lowChar):
@@ -741,11 +768,9 @@ class Cpu():
         temp += lowChar
         return temp
     
-
     #split 16 bit value and return upper and lower char
     def splitShort(self, short):
         return short >> 8, short & 0xff  
-
 
     #cpu intruction functions
     def op00(self, instruction):
@@ -887,7 +912,9 @@ class Cpu():
         self.regA.rra(self.regF)
         return 4
 
-    def op20(self, instruction):#this is a little janky, but register.add() wont work reliable with negative numbers ##TODO test this it might be bad
+    def op20(self, instruction):
+        #this is a little janky, but register.add() wont work 
+        #reliable with negative numbers ##TODO test this it might be bad
         if self.getZeroFlag() == 0:
             if instruction[1] & 0x80: #number is negative and we must sub
                 self.regPC.rawSub(abs(self.toSigned(instruction[1])))
@@ -1565,7 +1592,8 @@ class Cpu():
     def opc0(self, instruction):
         if self.getZeroFlag() == 0:
             sp = self.regSP.read()
-            self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
+            self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), 
+                                                self.mmu.read(sp)))
             self.regSP.rawAdd(2)
             return 20
         else:
@@ -1573,19 +1601,22 @@ class Cpu():
 
     def opc1(self, instruction):
         sp = self.regSP.read()
-        self.regBC.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
+        self.regBC.load(self.combineTwoChar(self.mmu.read(sp + 1), 
+                                            self.mmu.read(sp)))
         self.regSP.rawAdd(2)
         return 12
 
     def opc2(self, instruction):
         if self.getZeroFlag() == 0:
-            self.regPC.load(self.combineTwoChar(instruction[2], instruction[1]))
+            self.regPC.load(self.combineTwoChar(instruction[2], 
+                                                instruction[1]))
             return 16
         else:
             return 12
 
     def opc3(self, instruction):
-        self.regPC.load(self.combineTwoChar(instruction[2], instruction[1]))
+        self.regPC.load(self.combineTwoChar(instruction[2], 
+                                            instruction[1]))
         return 16
 
     def opc4(self, instruction):
@@ -1594,7 +1625,8 @@ class Cpu():
             pch, pcl = self.splitShort(self.regPC.read())
             self.mmu.write(sp - 1, pch)
             self.mmu.write(sp - 2, pcl)
-            self.regPC.load(self.combineTwoChar(instruction[2], instruction[1]))
+            self.regPC.load(self.combineTwoChar(instruction[2], 
+                                                instruction[1]))
             self.regSP.rawSub(2)
             return 24
         else:
@@ -1625,7 +1657,8 @@ class Cpu():
     def opc8(self, instruction):
         if self.getZeroFlag() == 1:
             sp = self.regSP.read()
-            self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
+            self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), 
+                                                self.mmu.read(sp)))
             self.regSP.rawAdd(2)
             return 20
         else:
@@ -1633,13 +1666,15 @@ class Cpu():
 
     def opc9(self, instruction):
         sp = self.regSP.read()
-        self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
+        self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), 
+                                            self.mmu.read(sp)))
         self.regSP.rawAdd(2)
         return 16
 
     def opca(self, instruction):
         if self.getZeroFlag() == 1:
-            self.regPC.load(self.combineTwoChar(instruction[2], instruction[1]))
+            self.regPC.load(self.combineTwoChar(instruction[2], 
+                                                instruction[1]))
             return 16
         else:
             return 12
@@ -1656,7 +1691,8 @@ class Cpu():
             pch, pcl = self.splitShort(self.regPC.read())
             self.mmu.write(sp - 1, pch)
             self.mmu.write(sp - 2, pcl)
-            self.regPC.load(self.combineTwoChar(instruction[2], instruction[1]))
+            self.regPC.load(self.combineTwoChar(instruction[2], 
+                                                instruction[1]))
             self.regSP.rawSub(2)
             return 24
         else:
@@ -1667,7 +1703,8 @@ class Cpu():
         pch, pcl = self.splitShort(self.regPC.read())
         self.mmu.write(sp - 1, pch)
         self.mmu.write(sp - 2, pcl)
-        self.regPC.load(self.combineTwoChar(instruction[2], instruction[1]))
+        self.regPC.load(self.combineTwoChar(instruction[2], 
+                                            instruction[1]))
         self.regSP.rawSub(2)
         return 24
 
@@ -1687,7 +1724,8 @@ class Cpu():
     def opd0(self, instruction):
         if self.getCarryFlag() == 0:
             sp = self.regSP.read()
-            self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
+            self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), 
+                                                self.mmu.read(sp)))
             self.regSP.rawAdd(2)
             return 20
         else:
@@ -1695,13 +1733,15 @@ class Cpu():
 
     def opd1(self, instruction):
         sp = self.regSP.read()
-        self.regDE.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
+        self.regDE.load(self.combineTwoChar(self.mmu.read(sp + 1), 
+                                            self.mmu.read(sp)))
         self.regSP.rawAdd(2)
         return 12
 
     def opd2(self, instruction):
         if self.getCarryFlag() == 0:
-            self.regPC.load(self.combineTwoChar(instruction[2], instruction[1]))
+            self.regPC.load(self.combineTwoChar(instruction[2], 
+                                                instruction[1]))
             return 16
         else:
             return 12
@@ -1712,7 +1752,8 @@ class Cpu():
             pch, pcl = self.splitShort(self.regPC.read())
             self.mmu.write(sp - 1, pch)
             self.mmu.write(sp - 2, pcl)
-            self.regPC.load(self.combineTwoChar(instruction[2], instruction[1]))
+            self.regPC.load(self.combineTwoChar(instruction[2], 
+                                                instruction[1]))
             self.regSP.rawSub(2)
             return 24
         else:
@@ -1742,7 +1783,8 @@ class Cpu():
     def opd8(self, instruction):
         if self.getCarryFlag() == 1:
             sp = self.regSP.read()
-            self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
+            self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), 
+                                                self.mmu.read(sp)))
             self.regSP.rawAdd(2)
             return 20
         else:
@@ -1750,14 +1792,16 @@ class Cpu():
 
     def opd9(self, instruction):
         sp = self.regSP.read()
-        self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
+        self.regPC.load(self.combineTwoChar(self.mmu.read(sp + 1), 
+                                            self.mmu.read(sp)))
         self.regSP.rawAdd(2)
         self.interrupts.IME = 1
         return 16
 
     def opda(self, instruction):
         if self.getCarryFlag() == 1:
-            self.regPC.load(self.combineTwoChar(instruction[2], instruction[1]))
+            self.regPC.load(self.combineTwoChar(instruction[2], 
+                                                instruction[1]))
             return 16
         else:
             return 12
@@ -1768,7 +1812,8 @@ class Cpu():
             pch, pcl = self.splitShort(self.regPC.read())
             self.mmu.write(sp - 1, pch)
             self.mmu.write(sp - 2, pcl)
-            self.regPC.load(self.combineTwoChar(instruction[2], instruction[1]))
+            self.regPC.load(self.combineTwoChar(instruction[2], 
+                                                instruction[1]))
             self.regSP.rawSub(2)
             return 24
         else:
@@ -1793,7 +1838,8 @@ class Cpu():
 
     def ope1(self, instruction):
         sp = self.regSP.read()
-        self.regHL.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
+        self.regHL.load(self.combineTwoChar(self.mmu.read(sp + 1), 
+                                            self.mmu.read(sp)))
         self.regSP.rawAdd(2)
         return 12
 
@@ -1836,7 +1882,8 @@ class Cpu():
         return 4
 
     def opea(self, instruction):
-        self.mmu.write(self.combineTwoChar(instruction[2], instruction[1]), self.regA.read())
+        self.mmu.write(self.combineTwoChar(instruction[2], instruction[1]), 
+                       self.regA.read())
         return 16
 
     def opee(self, instruction):
@@ -1858,7 +1905,8 @@ class Cpu():
 
     def opf1(self, instruction):
         sp = self.regSP.read()
-        self.regAF.load(self.combineTwoChar(self.mmu.read(sp + 1), self.mmu.read(sp)))
+        self.regAF.load(self.combineTwoChar(self.mmu.read(sp + 1), 
+                                            self.mmu.read(sp)))
         self.regSP.rawAdd(2)
         return 12
 
@@ -1891,7 +1939,9 @@ class Cpu():
         self.regSP.rawSub(2)
         return 16
 
-    #this is a janky solution, save sp, add value to get flags and result, copy to HL, then put original value back in sp
+    #this is a janky solution, save sp, add value to get flags 
+    #and result, copy to HL, then put original value back in sp
+    #TODO check if flags are set on SP + r8, or SP + HL
     def opf8(self, instruction):
         sp = self.regSP.read()
         if instruction[1] & 0x80: #number is negative and we must sub
@@ -1909,7 +1959,8 @@ class Cpu():
         return 8
 
     def opfa(self, instruction):
-        self.regA.load(self.mmu.read(self.combineTwoChar(instruction[2], instruction[1])))
+        self.regA.load(self.mmu.read(self.combineTwoChar(instruction[2], 
+                                                         instruction[1])))
         return 16
 
     def opfb(self, instruction):
@@ -1930,10 +1981,15 @@ class Cpu():
         return 16
     
     def invalidOp(self, instruction):
-        #print(f"invalid Opcode called {hex(instruction[0])} {hex(instruction[1])} {hex(instruction[2])}")
+        print(f"invalid Opcode called"
+              f"{hex(instruction[0])}" 
+              f"{hex(instruction[1])}" 
+              f"{hex(instruction[2])}")
         self.run = 0
         return None
     
+
+    #CB opcode functions
     def cb00(self):
         self.regB.rlc(self.regF)
 

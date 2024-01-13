@@ -29,14 +29,34 @@ class InterruptHandler:
             if interruptTriggered:
                 self.cpu.run = 1
                 if interruptTriggered & interruptVblank:
+                    self.mmu.write(
+                        0xff0f, 
+                        self.mmu.read(0xff0f) & ~interruptVblank
+                        )
                     return self.cpu.serviceInterrupt(vectorVblank)
                 if interruptTriggered & interruptLCDC:
+                    self.mmu.write(
+                        0xff0f, 
+                        self.mmu.read(0xff0f) & ~interruptLCDC
+                        )
                     return self.cpu.serviceInterrupt(vectorLCDC)
                 if interruptTriggered & interruptTimer:
+                    self.mmu.write(
+                        0xff0f, 
+                        self.mmu.read(0xff0f) & ~interruptTimer 
+                        )
                     return self.cpu.serviceInterrupt(vectorTimer)
                 if interruptTriggered & interruptSerial:
+                    self.mmu.write(
+                        0xff0f, 
+                        self.mmu.read(0xff0f) & ~interruptSerial
+                        )
                     return self.cpu.serviceInterrupt(vectorSerial)
                 if interruptTriggered & interruptControls:
+                    self.mmu.write(
+                        0xff0f, 
+                        self.mmu.read(0xff0f) & ~interruptControls
+                        )
                     return self.cpu.serviceInterrupt(vectorControls)
         if self.cpu.DI:
             if self.cpu.DI == 2:
@@ -50,5 +70,4 @@ class InterruptHandler:
                 self.cpu.EI = 0
                 return 0
             self.cpu.EI = 2
-        self.mmu.write(0xff0f, 0)
         return 0

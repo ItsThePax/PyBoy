@@ -2,11 +2,12 @@
 Gameboy emulator in python.
 
 Completly rewriting to make it not bad
+status: still bad :(
 
-Current status as of 30DEC2023:
+Current status as of 12JAN2024:
 
 Display:
-    -none
+    -bg only
         
 Memory controllers:
     -only basic 32k rom, no MC handeling implemented    
@@ -17,5 +18,5 @@ Sound:
     -not implemented yet
     
 Controls:
-    -nope
+    -yes
     

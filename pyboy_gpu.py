@@ -14,9 +14,14 @@ resetBitMasks = bytes([0xfe, 0xfd, 0xfb,  0xf7, 0xef, 0xdf, 0xbf, 0x7f])
 class DMG_gpu():
     def __init__(self, mmu):
         self.mmu = mmu
-        self.lcdModeFunctions = [self.lcdMode0, self.lcdMode1, self.lcdMode2, self.lcdMode3]
+        self.lcdModeFunctions = [self.lcdMode0, self.lcdMode1, 
+                                 self.lcdMode2, self.lcdMode3]
         self.screen = pygame.display.set_mode((160, 144), depth=8)
         self.clock = pygame.time.Clock()
+        self.formatIndexTable = {
+            0x8000: self.formatIndexU,
+            0x8800: self.formatIndexS
+        }
 
     FPS = 60
     frame = 0
@@ -28,13 +33,20 @@ class DMG_gpu():
 
     frameBuffer = bytearray([0] * (160 * 144))
 
+    def formatIndexU(self, index):
+        return index
+
+    def formatIndexS(self, index):
+        index &= 0xff
+        return (index ^ 0x80) - 0x80
 
     def reset(self): #might not need this fucntion
         self.screen = pygame.display.set_mode((160, 144), depth=8)
 
 
     def printStatus(self):
-        print(f"0xff40:0x{self.mmu.read(0xff40):02x} 0xff44:0x{self.mmu.read(0xff44):02x}")
+        print(f"0xff40:0x{self.mmu.read(0xff40):02x}"
+              f"0xff44:0x{self.mmu.read(0xff44):02x}")
     
 
     def step(self, ticks):
@@ -83,7 +95,11 @@ class DMG_gpu():
 
 
     def hBlank(self):
-        self.frameBuffer[self.lineNumber * 160:(self.lineNumber * 160) + 159] = self.renderLine(self.lineNumber)
+        lineData = self.renderLine(self.lineNumber)
+        for i in range(160):
+            self.frameBuffer.append(lineData[i])
+
+        
 
 
     def vBlank(self):
@@ -94,6 +110,7 @@ class DMG_gpu():
         self.clock.tick(self.FPS)
         pygame.display.update()
         self.getControls()
+        self.frameBuffer = bytearray([])
         self.frame += 1
         if self.frame % 60 == 0:
             self.t1 = time.time()
@@ -103,7 +120,6 @@ class DMG_gpu():
 
 
     def renderLine(self, lineNumber):
-        pixelData = bytearray(64)
         lcdc = self.mmu.read(0xff40)
         scrollY = self.mmu.read(0xff42)
         scrollX = self.mmu.read(0xff43)
@@ -116,13 +132,22 @@ class DMG_gpu():
         #bg
         bgIndexLocation = 0x9800 + (lcdc & 0x8 * 0x80)
         bgDataLocation = 0x8000 + (lcdc & 0x10 * 0x80)
-        tileY = (((lineNumber + scrollY) >> 3) * 32)
+        self.formatIndex = self.formatIndexTable[bgDataLocation]
+        tileY = (((lineNumber + scrollY) >> 3) * 32) % 1024
         lineInTile = (lineNumber + scrollY) % 8
         colorData = bytearray([0] * 512)
-        for i in range(0, 40, 2):
-            tileIndex = self.mmu.read(bgIndexLocation + (tileY + (i >> 1)))
-            colorByteHigh = self.mmu.read(bgDataLocation + (tileIndex << 4) + (lineInTile << 1))
-            colorByteLow = self.mmu.read(bgDataLocation + (tileIndex << 4) + 1)
+        startByte = scrollX // 8
+        for i in range(startByte, startByte + 42, 2):
+            tileIndex = self.formatIndex(
+                            self.mmu.read(bgIndexLocation 
+                                          + (tileY + (i >> 1))))
+            colorByteLow = self.mmu.read(bgDataLocation 
+                                          + (tileIndex << 4) 
+                                          + (lineInTile << 1))
+            colorByteHigh = self.mmu.read(bgDataLocation 
+                                         + (tileIndex << 4) 
+                                         + (lineInTile << 1)
+                                         + 1)
             for j in range(8):
                 temp = 0
                 if colorByteHigh & bitMasks[j]:
@@ -130,11 +155,9 @@ class DMG_gpu():
                 if colorByteLow & bitMasks[j]:
                     temp += 1
                 colorData[(i * 4) + j] = valueToColorMapping[bgColorMap[temp]]
-        return colorData[0:160]   
-       
+        return np.roll(colorData, scrollX)[0:160] 
 
     def renderLineDB(self, lineNumber):
-        pixelData = bytearray(64)
         lcdc = self.mmu.read(0xff40)
         scrollY = self.mmu.read(0xff42)
         scrollX = self.mmu.read(0xff43)
@@ -144,24 +167,38 @@ class DMG_gpu():
         bgColorMap = bytearray([0, 0, 0, 0])
         for i in range (4):
             bgColorMap[i] = (bgPallet >> (i*2)) & 0x3
+        print (f"bg color map is {bgColorMap}")
         #bg
         bgIndexLocation = 0x9800 + (lcdc & 0x8 * 0x80)
         bgDataLocation = 0x8000 + (lcdc & 0x10 * 0x80)
+        self.formatIndex = self.formatIndexTable[bgDataLocation]
+        print(f"bg index location is {hex(bgIndexLocation)}")
+        print(f"bg data location is {hex(bgDataLocation)}")
         tileY = (((lineNumber + scrollY) >> 3) * 32)
         print(f'tileY is {tileY}')
         lineInTile = (lineNumber + scrollY) % 8
         print(f'line in tile {lineInTile}')
         colorData = bytearray([0] * 512)
         for i in range(0, 40, 2):
-            print(f'tile index pointer is {hex(bgIndexLocation + (tileY + (i >> 1)))}')
-            tileIndex = self.mmu.read(bgIndexLocation + (tileY + (i >> 1)))
-            print(f'tile index is {tileIndex}')
-            print(f'high color byte is at {hex(bgDataLocation + (tileIndex << 4))}')
-            print(f' low color byte is at {hex(bgDataLocation + (tileIndex << 4) + 1)}')
-            colorByteHigh = self.mmu.read(bgDataLocation + (tileIndex << 4) + (lineInTile << 1))
-            colorByteLow = self.mmu.read(bgDataLocation + (tileIndex << 4) + 1)
-            print(f'color byte high is {hex(colorByteHigh)}')
-            print(f'color byte  low is {hex(colorByteLow)}')
+            tileIndex = self.formatIndex(self.mmu.read(bgIndexLocation 
+                                                        + (tileY + (i >> 1))))
+            print(f"tile index pointer is "
+                  f"{hex(bgIndexLocation + (tileY + (i >> 1)))}")
+            print(f"tile index is {tileIndex}")
+            colorByteLow = self.mmu.read(bgDataLocation 
+                                          + (tileIndex << 4) 
+                                          + (lineInTile << 1))
+            print(f"color byte low pointer is "
+                  f"{hex(bgDataLocation + (tileIndex << 4) + (lineInTile << 1))}")
+            print(f"color byte high pointer is "
+                  f"{hex(bgDataLocation + (tileIndex << 4) + (lineInTile << 1) + 1)}")
+            print(f"color byte low is {hex(colorByteLow)}")
+            colorByteHigh = self.mmu.read(bgDataLocation 
+                                         + (tileIndex << 4)
+                                         + (lineInTile << 1) 
+                                         + 1)
+            print(f"color byte high is {hex(colorByteHigh)}")
+            intColorData = []
             for j in range(8):
                 temp = 0
                 if colorByteHigh & bitMasks[j]:
@@ -169,9 +206,21 @@ class DMG_gpu():
                 if colorByteLow & bitMasks[j]:
                     temp += 1
                 colorData[(i * 4) + j] = valueToColorMapping[bgColorMap[temp]]
-            print(f'color data this tile is {colorData[i * 4:(i * 4) + 4]}')
-        return colorData[0:160]   
-
+                intColorData.append(int(valueToColorMapping[bgColorMap[temp]]))
+            print(f'color data this tile is {intColorData}')
+            print("")
+        return colorData[0:160]  
+       
+    def renederCurrentFrame(self):
+        for i in range(144):
+            self.renderLine(i)
+        b = np.array(self.frameBuffer)
+        b.resize((144, 160))
+        surf = pygame.surfarray.make_surface(np.flipud(np.rot90(b)))
+        self.screen.blit(surf, ((0, 0)))
+        self.clock.tick(self.FPS)
+        pygame.display.update()
+        pygame.event.get()
 
     def getControls(self):
         events = pygame.event.get()
@@ -212,3 +261,18 @@ class DMG_gpu():
                     self.mmu.Dpad |= setBitMasks[2]
                 elif event.key == 1073741905: #down
                     self.mmu.Dpad |= setBitMasks[3]    
+
+
+
+    def printVram(self):
+        vram = []
+        for i in range(0x8000, 0xa000):  
+            vram.append(self.mmu.read(i))
+        for i in range(0, len(vram), 16):
+            print(f"0x{i + 0x8000:04x}: "
+                  f"{vram[i + 0]:02x} {vram[i + 1]:02x} {vram[i + 2]:02x} "
+                  f"{vram[i + 3]:02x} {vram[i + 4]:02x} {vram[i + 5]:02x} "
+                  f"{vram[i + 6]:02x} {vram[i + 7]:02x} {vram[i + 8]:02x} "
+                  f"{vram[i + 9]:02x} {vram[i + 10]:02x} {vram[i + 11]:02x} "
+                  f"{vram[i + 12]:02x} {vram[i + 13]:02x} {vram[i + 14]:02x} " 
+                  f"{vram[i + 15]:02x}")
