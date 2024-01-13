@@ -21,7 +21,6 @@ class InterruptHandler:
 
     def reset(self):
         self.IME = 0
-    
 
     def step(self):
         if self.IME:

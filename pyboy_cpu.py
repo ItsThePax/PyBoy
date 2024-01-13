@@ -355,6 +355,89 @@ class Register8bit:
             flags.load(flagZero)
         else:
             flags.load(flagNone)
+    
+    def DAA(self, flags):
+        flagMask = 0xb0 # hardcoded flagmask
+        oldFlags = flags.read()
+        print(f"old flags are {hex(oldFlags)}")
+        newFlags = 0
+        x = self.value[0]
+        xLowNibble = x & 0xf
+        xHighNibble = x >> 4
+        if oldFlags & flagSub: # flag 1 == 1
+            print("sub flag 1")
+            if oldFlags & flagCarry: # flags 3 == 1
+                print("carry flag 1")
+                if oldFlags & flagHalfCarry:
+                    print("halfcarry flag 1")
+                    x += 0x9a
+                else:
+                    print("halfcarry flag 0")
+                    x += 0xa0
+            else: #flags 3 == 0
+                print("carry flag 0")
+                if oldFlags & flagHalfCarry:
+                    print("halfcarry flag 1")
+                    x += 0xfa
+                else:
+                    print("halfcarry flag 0")
+                    x += 0
+        else: #flag 1 == 0
+            print("sub flag 0")
+            if oldFlags & flagCarry:  # flag[3] == 1
+                print("carry flag 1")
+                if oldFlags & flagHalfCarry: # flags 2 == 1
+                    print("halfcarry flag 1")
+                    x += 0x66
+                    newFlags |= flagCarry
+                else: # flags 2 == 0
+                    print("halfcarry flag 0")
+                    if xLowNibble < 0xa:
+                        print("low nibble < 0xa")
+                        x += 0x60    
+                    else:
+                        print("low nibble >= 0xa")
+                        x += 0x66
+                    newFlags |= flagCarry
+            else: #flags 3 = 0
+                print("carry flag 0")
+                if oldFlags & flagHalfCarry: # flags 2 = 1
+                    print("halfcarry flag 1")
+                    if xHighNibble < 0xa:
+                        print("high nibble < 0xa")
+                        x += 0x6
+                    else:
+                        print("high nibble >= 0xa")
+                        x += 0x66
+                        newFlags |= flagCarry
+                else: # flags 2 == 0
+                    print("halfcarry flag 0")
+                    if xLowNibble < 0xa:
+                        print("low nibble < 0xa")
+                        if xHighNibble < 0xa:
+                            print("high nibble < 0xa")
+                            x += 0
+                        else:
+                            print("high nibble >= 0xa")
+                            x += 0x60
+                            newFlags |= flagCarry
+                    else: # xLowNibble >= 0xa
+                        print("low nibble >= 0xa")
+                        if xHighNibble < 0x9:
+                            print("high nibble < 0x9")
+                            x += 0x6    
+                        else:
+                            print("high nibble >= 0x9")
+                            x += 0x66
+                            newFlags |= flagCarry
+        print (f"un modulo x is {hex(x)}")
+        x &= 0xff
+        if x == 0:
+            newFlags |= flagZero
+        self.value[0] = x
+        newFlags &= flagMask
+        oldFlags &= (flagMask ^ 0xff)
+        flags.load(newFlags | oldFlags)
         
 
 class Cpu():
@@ -445,7 +528,7 @@ class Cpu():
             self.opf0, self.opf1, self.opf2, self.opf3, 
             self.invalidOp, self.opf5, self.opf6, self.opf7, 
             self.opf8, self.opf9, self.opfa, self.opfb, 
-            self.invalidOp, self.invalidOp, self.opfe, self.opff
+            self.invalidOp, self.invalidOp, self.opfe, self.opff              
         ]
 
         #table of cb functions
@@ -629,24 +712,6 @@ class Cpu():
     def clearFlags(self):
         self.regF.load(0)
 
-    #legacy fucntion, still used by DAA
-    def unpackFlags(self):
-        fValue = self.regF.read()
-        flags = bytearray([0, 0, 0, 0])
-        for i in range(0, 3,):
-            if fValue & setBitMasks[7 - i]:
-                flags[i] = 1
-        return flags
-    
-    #legacy function, still used by DAA
-    # should be passed lenth 4  bool array/list ordered Z N H C
-    def packFlags(self, flags):
-        fValue = 0
-        for i in range(4):
-            if flags[i]:
-                fValue += setBitMasks[7- i]
-        return fValue
-
     def toSigned(self, value): #stolen from gengkev on stackoverflow
         value &= 0xff
         return (value ^ 0x80) - 0x80
@@ -698,70 +763,8 @@ class Cpu():
         self.mmu.write(sp - 2, pcl)
         self.regPC.load(vector)
         self.regSP.rawSub(2)
-        self.mmu.write(0xff0f, 0)
         return 24
-        
-    #DAA instruction logic. I hate this ##TODO## make me not hate this
-    #legacy function writeen before implementing flag masks,
-    #handles own flag logic so flag mask not needed
-    def DAA(self, x):
-        flags = self.unpackFlags()
-        flags[0] = 0
-        xLowNibble = x & 0xf
-        xHighNibble = x >> 4
-        if flags[1] == 0:
-            if ((flags[3] == 0 and 0x0 <= xHighNibble <= 0x9 and
-                flags[2] == 0 and 0x0 <= xLowNibble <= 0x9)):
-                pass
-            elif ((flags[3] == 0 and 0x0 <= xHighNibble <= 0x8) and
-                  (flags[2] == 0 and 0xa <= xLowNibble <= 0xf)):
-                x += 0x6
-            elif ((flags[3] == 0 and 0x0 <= xHighNibble <= 0x9) and
-                  (flags[2] == 1 and 0x0 <= xLowNibble <= 0x3)):
-                x += 0x6
-            elif ((flags[3] == 0 and 0xa <= xHighNibble <= 0xf) and
-                  (flags[2] == 0 and 0x0 <= xLowNibble <= 0x9)):
-                x += 0x60
-                flags[3] = 1
-            elif ((flags[3] == 0 and 0x9 <= xHighNibble <= 0xf) and
-                  (flags[2] == 0 and 0xa <= xLowNibble <= 0xf)):
-                x += 0x66
-                flags[3] = 1
-            elif ((flags[3] == 0 and 0xa <= xHighNibble <= 0xf) and 
-                  (flags[2] == 1 and 0x0 <= xLowNibble <= 0x3)):
-                x += 0x66
-                flags[3] = 1
-            elif ((flags[3] == 1 and 0x0 <= xHighNibble <= 0x2) and 
-                  (flags[2] == 0 and 0x0 <= xLowNibble <= 0x9)):
-                x += 0x60
-                flags[3] = 1
-            elif ((flags[3] == 1 and 0x0 <= xHighNibble <= 0x2) and 
-                  (flags[2] == 0 and 0xa <= xLowNibble <= 0xf)):
-                x += 0x66
-                flags[3] = 1
-            elif ((flags[3] == 1 and 0x0 <= xHighNibble <= 0x3) and 
-                  (flags[2] == 1 and 0x0 <= xLowNibble <= 0x3)):
-                x += 0x66
-                flags[3] = 1
-        else:
-            if ((flags[3] == 0 and 0x0 <= xHighNibble <= 0x9) and 
-                (flags[2] == 0 and 0x0 <= xLowNibble <= 0x9)):
-                pass
-            elif ((flags[3] == 0 and 0x0 <= xHighNibble <= 0x8) and 
-                  (flags[2] == 1 and 0x6 <= xLowNibble <= 0xf)):
-                x += 0xfa
-            elif ((flags[3] == 1 and 0x7 <= xHighNibble <= 0xf) and 
-                  (flags[2] == 0 and 0x0 <= xLowNibble <= 0x9)):
-                x += 0xa0
-            elif ((flags[3] == 1 and 0x6 <= xHighNibble <= 0xf) and 
-                  (flags[2] == 1 and 0x6 <= xLowNibble <= 0xf)):
-                x += 0x9a
-        x &= 0xff
-        if x == 0:
-            flags[0] = 1
-        self.regF.load(self.packFlags(flags))
-        return x
-
+    
     #combine 2 char into short
     def combineTwoChar(self, highChar, lowChar):
         temp = highChar * 0x100
@@ -877,10 +880,12 @@ class Cpu():
         self.regA.rla(self.regF)
         return 4
 
-    def op18(self, instruction): #this is a little janky, but register.add() wont work reliable with negative numbers ##TODO test this it might be bad
-        if instruction[1] & 0x80: #number is negative and we must sub
+    # this is a little janky, but register.add() wont work reliable 
+    # with negative numbers ##TODO test this it might be bad
+    def op18(self, instruction): 
+        if instruction[1] & 0x80: # number is negative and we must sub
             self.regPC.rawSub(abs(self.toSigned(instruction[1])))
-        else: #number is positive and we must add
+        else: # number is positive and we must add
             self.regPC.rawAdd(instruction[1])
         return 12
 
@@ -951,7 +956,7 @@ class Cpu():
         return 8
 
     def op27(self, instruction):
-        self.regA.load(self.DAA(self.regA.read()))
+        self.regA.DAA(self.regF)
         return 4
 
     def op28(self, instruction):
