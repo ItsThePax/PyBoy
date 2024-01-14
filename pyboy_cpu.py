@@ -348,7 +348,7 @@ class Register8bit:
         flags.load(newFlags)
 
     def swap(self, flags): #no flag mask, alsways affects all flags
-        temp = self.value[0] & 0xf << 4
+        temp = self.value[0] & 0xff << 4
         self.value[0] >>= 4
         self.value[0] += temp
         if self.value[0] == 0:

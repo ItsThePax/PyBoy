@@ -85,7 +85,7 @@ def formatOpcodeName(instructions, length, registers):
                     hex(registers[1] + offset + 2)
                     )
         elif instructions[0] in [0xcb, 0x20]:
-            return opcodeNames[instructions]
+            return opcodeNames[instructions[0]]
         elif instructions[0] in [0xe0, 0xe2, 0xf0, 0xf2]:
             return opcodeNames[instructions[0]].format(
                     hex(0xff00 + instructions[1])

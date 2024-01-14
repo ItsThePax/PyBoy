@@ -10,7 +10,7 @@ cartridgeTypeMbc = {
     0x0f:3, 0x10:3, 0x11:3, 0x12:3, 0x13:3 
 }
 
-romPageSize = 0x4000
+romBankSize = 0x4000
 romMode = {
     0x00: 0,
     0x01: 4,
@@ -29,7 +29,6 @@ romMode = {
 ramPageSize = 0x2000
 ramMode = {
     0x0: 0
-    
 }
 
 class Mmu:
@@ -62,54 +61,54 @@ class Mmu:
         }
 
         self.mmuType = self.rawReadCartridge(0x147)
-        if cartridgeTypeMbc[self.mmuType] == 1:
-            self.romRAMSelector = 0 # 0 controls rom, 1 controlls ram
         self.romType = self.rawReadCartridge(0x148)
         self.ramType = self.rawReadCartridge(0x149)
         self.ram = bytearray([0] * (ramPageSize * ramMode[self.ramType]))
         self.read = self.readWriteFunction[cartridgeTypeMbc[self.mmuType]]["read"]
         self.write = self.readWriteFunction[cartridgeTypeMbc[self.mmuType]]["write"]
     
+    # 0 controls rom, 1 controlls ram
+    MC1RomRamSelector = 0
 
     mmuType = 0
     romType = 0
-    RamType = 0 
+    ramType = 0 
     romBank = 1
     RamBank = 0
     ramWriteProtect = 1
 
     #controls
     buttons = 0xf
-    Dpad = 0xf
+    dpad = 0xf
 
 
     #reset mmu to power-on state
     def reset(self):
+        self.MC1RomRamSelector = 0
+        self.romBank = 1
+        self.ramBank = 0
+        self.ramWriteProtect = 1
         self.buttons = 0xf
-        self.Dpad = 0xf
+        self.dpad = 0xf
         self.read = self.readWriteFunction[cartridgeTypeMbc[self.mmuType]]["read"]
         self.write = self.readWriteFunction[cartridgeTypeMbc[self.mmuType]]["write"]
         self.memory = bytearray([])
         for i in range(0x10000):
             self.memory.append(random.randint(0x0, 0xff))
 
+    def getControls(self):
+        controls = self.memory[0xff00]
+        if controls & 0x2f == 20:
+            return controls | self.dpad
+        if controls & 0x1f == 0x10:
+            return controls | self.buttons
+        return controls | 0xf
 
     #opens a file and returns the entire contents ~~DONT ABUSE~~
     def loadFile(self, filename):
         with open(filename, 'rb') as f:
             return f.read()
-        
-
-    #status of control register
-    def getControls(self):
-        temp = self.memory[0xff00]
-        if temp & 0x10:
-            if temp & 0x20:
-                return self.memory[0xff00] | 0xff
-            return self.memory[0xff00] | self.Dpad
-        return self.memory[0xff00] | self.buttons
             
-
 
     #direct read access to cartridgeRom   
     def rawReadCartridge(self, address):
@@ -130,12 +129,12 @@ class Mmu:
             if address & 0xe000 == 0xa000:
                 return 0xff
             else:
-                return self.memory[address]
+                if address == 0xff00:
+                    return self.getControls()
+                else:
+                    return self.memory[address]
         else:
-            if address > 0x4000:
-                return self.cartridgeRom[address]
-            else:
-                return self.cartridgeRom[(romPageSize * self.romPage) + (address & 0x3fff)]
+            return self.cartridgeRom[address]
 
 
     #write to mc0 #TODO make this not suck later
@@ -182,7 +181,13 @@ class Mmu:
             else:
                 return self.memory[address]
         else:
-            return self.cartridgeRom[address]
+            if address < 0x4000:
+                return self.cartridgeRom[address]
+            else:
+                return self.cartridgeRom[
+                    (romBankSize * self.romBank) 
+                    + (address & 0x3fff)
+                ]
 
 
     #write to mc1 #TODO make this not suck later
@@ -200,12 +205,12 @@ class Mmu:
             elif address < 0x4000:
                 self.romBank = (self.romBank & 0xe0) | value 
             elif address < 0x6000:
-                if self.romRAMSelector == 0:
+                if self.MC1RomRamSelector == 0:
                     self.romBank = (self.romBank & 0x1f) | (value << 5)
                 else:
                     self.ramBank = value
             else:
-                self.romRAMSelector = value
+                self.MC1RomRamSelector = value
         elif 0x8000 <= address < 0xa000:
             self.memory[address] = value
         elif 0xc000 <= address < 0xde00:

@@ -34,6 +34,7 @@ class Pyboy:
             self.step()
         while self.cpu.regPC.read() != target:
             self.step()
+        self.cpu.ps()
 
     def runToDB(self, target):  # must match pc exactly
         if self.cpu.regPC.read() == target:
@@ -123,6 +124,16 @@ def fuzz():
         a.cpu.nextInstruction[2] = random.randint(0, 255)
         a.cpu.ps()
         a.cpu.eni()
+
+
+def memDump(gb):
+    mem = bytearray([])
+    for i in range(0x10000):
+        mem.append(gb.mmu.read(i))
+    with open("memdump.bin", "wb") as f:
+        f.write(mem)
+    
+
 
 
 if __name__ == "__main__":
