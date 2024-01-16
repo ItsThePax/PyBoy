@@ -763,7 +763,7 @@ class Cpu():
         self.mmu.write(sp - 2, pcl)
         self.regPC.load(vector)
         self.regSP.rawSub(2)
-        return 24
+        return 16
     
     #combine 2 char into short
     def combineTwoChar(self, highChar, lowChar):

@@ -1,8 +1,9 @@
+
 import random
 
 random.seed()
 
-cartridgeTypeMbc = {
+cartMbcMap = {
     0x00:0,
     0x01:2, 0x02:2, 0x03:2,
     0x05:2, 0x06:2,
@@ -12,18 +13,8 @@ cartridgeTypeMbc = {
 
 romBankSize = 0x4000
 romMode = {
-    0x00: 0,
-    0x01: 4,
-    0x02: 8,
-    0x03: 16,
-    0x04: 32,
-    0x05: 64,
-    0x06: 128,
-    0x07: 256,
-    0x08: 512,
-    0x52: 72,
-    0x53: 80,
-    0x54: 96
+    0x00: 0, 0x01: 4, 0x02: 8, 0x03: 16, 0x04: 32, 0x05: 64, 0x06: 128,
+    0x07: 256, 0x08: 512, 0x52: 72, 0x53: 80, 0x54: 96
 }
 
 ramPageSize = 0x2000
@@ -64,8 +55,8 @@ class Mmu:
         self.romType = self.rawReadCartridge(0x148)
         self.ramType = self.rawReadCartridge(0x149)
         self.ram = bytearray([0] * (ramPageSize * ramMode[self.ramType]))
-        self.read = self.readWriteFunction[cartridgeTypeMbc[self.mmuType]]["read"]
-        self.write = self.readWriteFunction[cartridgeTypeMbc[self.mmuType]]["write"]
+        self.read = self.readWriteFunction[cartMbcMap[self.mmuType]]["read"]
+        self.write = self.readWriteFunction[cartMbcMap[self.mmuType]]["write"]
     
     # 0 controls rom, 1 controlls ram
     MC1RomRamSelector = 0
@@ -81,7 +72,6 @@ class Mmu:
     buttons = 0xf
     dpad = 0xf
 
-
     #reset mmu to power-on state
     def reset(self):
         self.MC1RomRamSelector = 0
@@ -90,12 +80,13 @@ class Mmu:
         self.ramWriteProtect = 1
         self.buttons = 0xf
         self.dpad = 0xf
-        self.read = self.readWriteFunction[cartridgeTypeMbc[self.mmuType]]["read"]
-        self.write = self.readWriteFunction[cartridgeTypeMbc[self.mmuType]]["write"]
+        self.read = self.readWriteFunction[cartMbcMap[self.mmuType]]["read"]
+        self.write = self.readWriteFunction[cartMbcMap[self.mmuType]]["write"]
         self.memory = bytearray([])
         for i in range(0x10000):
             self.memory.append(random.randint(0x0, 0xff))
 
+    #returns contents of controlls register 0xff00
     def getControls(self):
         controls = self.memory[0xff00]
         if controls & 0x2f == 20:
@@ -109,10 +100,17 @@ class Mmu:
         with open(filename, 'rb') as f:
             return f.read()
             
-
-    #direct read access to cartridgeRom   
+    #direct read access to cartridgeRom
     def rawReadCartridge(self, address):
         return self.cartridgeRom[address]
+    
+     # raw memory read
+    def rawReadMemory(self, address):
+        return self.memory[address]
+        
+    # raw memory write
+    def rawWriteMemory(self, address, value):
+        self.memory[address] = value & 0xff    
     
     #ROM only
     #use this fucntion to read while bios is active
@@ -122,7 +120,6 @@ class Mmu:
         else:
             return self.readRomOnly(address)
     
-
     #use this function to read after bios has been disabled
     def readRomOnly(self, address):
         if address > 0x7fff:
@@ -135,9 +132,8 @@ class Mmu:
                     return self.memory[address]
         else:
             return self.cartridgeRom[address]
-
-
-    #write to mc0 #TODO make this not suck later
+        
+    #write to Rom only #TODO make this not suck later
     def writeRomOnly(self, address, value):
         if value > 0xff:
             print(f"WARNING: something tried to write "
@@ -158,12 +154,76 @@ class Mmu:
         elif 0xff00 <= address < 0x10000:
             if address == 0xff00:
                 self.memory[0xff00] = value & 0xf0
-            if address == 0xff50:
+            elif address == 0xff04:
+                self.memory[address] = 0
+                self.timer.divH  = 0
+            elif address == 0xff05:
+                self.memory[address] = value
+                self.timer.tima = value
+            elif address == 0xff06:
+                self.memory[address] = value
+                self.timer.tma = value
+            elif address == 0xff07:
+                self.memory[address] = value
+                self.timer.run = value & 0x4
+                self.timer.mode = value & 0x3
+            elif address == 0xff40:
+                self.memory[address] = value
+                self.gpu.lcdc = value
+                if value & 0x80 == 0:
+                    self.write(0xff44, 0)
+            elif address == 0xff41:
+                self.memory[address] = value
+                self.gpu.stat = value
+                self.gpu.mode = value & 0x3
+            elif address == 0xff42:
+                self.memory[address] = value
+                self.gpu.scy = value
+            elif address == 0xff43:
+                self.memory[address] = value
+                self.gpu.scx = value
+            elif address == 0xff44:
+                self.memory[address] = value
+                self.gpu.ly = value
+            elif address == 0xff45:
+                self.memory[address] = value
+                self.gpu.lyc = value
+            elif address == 0xff46:
+                # do dma
+                pass
+            elif address == 0xff47:
+                self.memory[address] = value
+                self.gpu.bgPallet = value
+            elif address == 0xff48:
+                self.memory[address] = value
+                self.gpu.obPallet0 = value
+            elif address == 0xff49:
+                self.memory[address] = value
+                self.gpu.obPallet1 = value
+            elif address == 0xff4a:
+                self.memory[address] = value
+                self.gpu.wy = value
+            elif address == 0xff4b:
+                self.memory[address] = value
+                self.gpu.wx = value
+            elif address == 0xff50:
                 self.read = self.readRomOnly
             else:
                 self.memory[address] = value
 
-
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     #MC1
     #use this fucntion to read while bios is active
     def readMC1WithBios(self, address):
@@ -172,7 +232,6 @@ class Mmu:
         else:
             return self.readMC1(address)
     
-
     #use this function to read after bios has been disabled
     def readMC1(self, address):
         if address > 0x7fff:
@@ -186,9 +245,7 @@ class Mmu:
             else:
                 return self.cartridgeRom[
                     (romBankSize * self.romBank) 
-                    + (address & 0x3fff)
-                ]
-
+                    + (address & 0x3fff)]
 
     #write to mc1 #TODO make this not suck later
     def writeMC1(self, address, value):

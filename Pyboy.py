@@ -3,12 +3,11 @@ import random
 import pyboy_cpu
 import pyboy_gpu
 import pyboy_interrupt
-
+import pyboy_timer
 
 random.seed()
 
-
-biosFile = "DMG_quickboot.bin"
+biosFile = "DMG_rom.bin"
 cartridgeFile = "tetris.gb"
 
 
@@ -18,7 +17,10 @@ class Pyboy:
         self.mmu = self.cpu.mmu
         self.gpu = pyboy_gpu.DMG_gpu(self.mmu)
         self.interrupts = pyboy_interrupt.InterruptHandler(self.cpu, self.mmu)
+        self.timer = pyboy_timer.Timer(self.mmu)
         self.cpu.interrupts = self.interrupts
+        self.mmu.timer = self.timer
+        self.mmu.gpu = self.gpu
     
     def run(self):
         while (True):  # run forever until error or break
@@ -50,6 +52,7 @@ class Pyboy:
             ticks += self.cpu.step()
         else:
             ticks += 4
+        self.timer.step(ticks)
         self.gpu.step(ticks)
 
     def stepOver(self):
@@ -83,6 +86,13 @@ class Pyboy:
         self.gpu.reset()
         self.interrupts.reset()
 
+    def memDump(self):
+        mem = bytearray([])
+        for i in range(0x10000):
+            mem.append(self.mmu.read(i))
+        with open("memdump.bin", "wb") as f:
+            f.write(mem)
+    
 
 def main(cartridgeFile, biosFile):
     a = Pyboy(cartridgeFile, biosFile)
@@ -126,13 +136,7 @@ def fuzz():
         a.cpu.eni()
 
 
-def memDump(gb):
-    mem = bytearray([])
-    for i in range(0x10000):
-        mem.append(gb.mmu.read(i))
-    with open("memdump.bin", "wb") as f:
-        f.write(mem)
-    
+
 
 
 
