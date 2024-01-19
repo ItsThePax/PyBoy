@@ -7,9 +7,8 @@ import pyboy_timer
 
 random.seed()
 
-biosFile = "DMG_rom.bin"
-cartridgeFile = "tetris.gb"
-
+biosFile = "DMG_quickboot.bin"
+cartridgeFile = "halt_bug.gb"
 
 class Pyboy:
     def __init__(self, cartridgeFile, biosFile):
@@ -64,13 +63,11 @@ class Pyboy:
                        + self.cpu.opcodeLength[self.cpu.nextInstruction[0]])
 
     def stepDB(self):
-        self.cpu.fni() # fetch next instruction
         self.cpu.pni() # print next instruction
         self.step()
         self.cpu.ps()
 
     def stepOverDB(self):
-        self.cpu.fni() # fetch next instruction
         self.cpu.pni() # print next instruction
         if self.cpu.nextInstruction[0] in [0x18, 0xc3, 0xc7, 0xcf, 0xd7, 
                                            0xdf, 0xe7, 0xef, 0xf7, 0xff]:
@@ -134,10 +131,6 @@ def fuzz():
         a.cpu.nextInstruction[2] = random.randint(0, 255)
         a.cpu.ps()
         a.cpu.eni()
-
-
-
-
 
 
 if __name__ == "__main__":

@@ -355,90 +355,27 @@ class Register8bit:
             flags.load(flagZero)
         else:
             flags.load(flagNone)
-    
+
     def DAA(self, flags):
-        flagMask = 0xb0 # hardcoded flagmask
         oldFlags = flags.read()
-        print(f"old flags are {hex(oldFlags)}")
-        newFlags = 0
-        x = self.value[0]
-        xLowNibble = x & 0xf
-        xHighNibble = x >> 4
-        if oldFlags & flagSub: # flag 1 == 1
-            print("sub flag 1")
-            if oldFlags & flagCarry: # flags 3 == 1
-                print("carry flag 1")
-                if oldFlags & flagHalfCarry:
-                    print("halfcarry flag 1")
-                    x += 0x9a
-                else:
-                    print("halfcarry flag 0")
-                    x += 0xa0
-            else: #flags 3 == 0
-                print("carry flag 0")
-                if oldFlags & flagHalfCarry:
-                    print("halfcarry flag 1")
-                    x += 0xfa
-                else:
-                    print("halfcarry flag 0")
-                    x += 0
-        else: #flag 1 == 0
-            print("sub flag 0")
-            if oldFlags & flagCarry:  # flag[3] == 1
-                print("carry flag 1")
-                if oldFlags & flagHalfCarry: # flags 2 == 1
-                    print("halfcarry flag 1")
-                    x += 0x66
-                    newFlags |= flagCarry
-                else: # flags 2 == 0
-                    print("halfcarry flag 0")
-                    if xLowNibble < 0xa:
-                        print("low nibble < 0xa")
-                        x += 0x60    
-                    else:
-                        print("low nibble >= 0xa")
-                        x += 0x66
-                    newFlags |= flagCarry
-            else: #flags 3 = 0
-                print("carry flag 0")
-                if oldFlags & flagHalfCarry: # flags 2 = 1
-                    print("halfcarry flag 1")
-                    if xHighNibble < 0xa:
-                        print("high nibble < 0xa")
-                        x += 0x6
-                    else:
-                        print("high nibble >= 0xa")
-                        x += 0x66
-                        newFlags |= flagCarry
-                else: # flags 2 == 0
-                    print("halfcarry flag 0")
-                    if xLowNibble < 0xa:
-                        print("low nibble < 0xa")
-                        if xHighNibble < 0xa:
-                            print("high nibble < 0xa")
-                            x += 0
-                        else:
-                            print("high nibble >= 0xa")
-                            x += 0x60
-                            newFlags |= flagCarry
-                    else: # xLowNibble >= 0xa
-                        print("low nibble >= 0xa")
-                        if xHighNibble < 0x9:
-                            print("high nibble < 0x9")
-                            x += 0x6    
-                        else:
-                            print("high nibble >= 0x9")
-                            x += 0x66
-                            newFlags |= flagCarry
-        print (f"un modulo x is {hex(x)}")
-        x &= 0xff
-        if x == 0:
-            newFlags |= flagZero
-        self.value[0] = x
-        newFlags &= flagMask
-        oldFlags &= (flagMask ^ 0xff)
-        flags.load(newFlags | oldFlags)
-        
+        newFlags = oldFlags & 0x50 
+        temp = 0
+        if oldFlags & 0x40:
+            if oldFlags & 0x10:
+                temp += 0x60
+            if oldFlags & 0x20:
+                temp += 0x6
+            self.rawSub(temp)
+        else:
+            if self.value[0] > 0x99 or oldFlags & 0x10:
+                temp += 0x60
+                newFlags |= 0x10
+            if (self.value[0] & 0xf) > 0x9 or oldFlags & 0x20:
+                temp += 0x6
+            self.rawAdd(temp)
+        if self.value[0] == 0:
+            newFlags |= 0x80
+        flags.load(newFlags)        
 
 class Cpu():
     def __init__(self, cartridgeRomPath, biosRomPath):
@@ -618,6 +555,11 @@ class Cpu():
             2, 1, 1, 1, 4, 1, 2, 1, 2, 1, 3, 1, 4, 4, 2, 1
         ]
 
+        #instruction fetch fucntions:
+        self.fetch = [
+            self.fetchNextInstruction, 
+            self.haltBugFetchNextInstruction]
+
         #next instruction decode buffer
         self.nextInstruction = bytearray([0, 0, 0])
         
@@ -629,6 +571,7 @@ class Cpu():
     run = 1
     stop = 0
     halt = 0
+    haltBug = 0
 
     #interrupt master enable
     DI = 0
@@ -723,9 +666,11 @@ class Cpu():
 
     def printNextInstruction(self):
         print("")
-        print(f'PC is at:{hex(self.regPC.read())}', end=" --- ")
-        for i in range(self.opcodeLength[self.nextInstruction[0]]):
-            print (hex(self.nextInstruction[i]), end=" ")
+        pc = self.regPC.read()
+        print(f'PC is at:{hex(pc)}', end=" --- ")
+        
+        for i in range(self.opcodeLength[self.mmu.read(pc)]):
+            print (hex(self.mmu.read(pc + i)), end=" ")
         registers = [self.regSP.read(), self.regPC.read()]
         opcodeString = debug.formatOpcodeName(
             self.nextInstruction, 
@@ -744,14 +689,16 @@ class Cpu():
     
     def fetchNextInstruction(self):
         pc = self.regPC.read()
-        instruction = bytearray([0, 0, 0])
-        for i in range(3): 
-            instruction[i] = self.mmu.read(pc + i)
+        instruction = bytearray([
+            self.mmu.read(pc), 
+            self.mmu.read(pc + 1), 
+            self.mmu.read(pc + 2)
+            ])
         self.nextInstruction = instruction
     fni = fetchNextInstruction
 
     def fetchAndExecuteNextInstruction(self):
-        self.fetchNextInstruction()
+        self.fetch[self.haltBug]()
         return self.executeNextInstruction()
     feni = fetchAndExecuteNextInstruction
     step = fetchAndExecuteNextInstruction
@@ -764,6 +711,17 @@ class Cpu():
         self.regPC.load(vector)
         self.regSP.rawSub(2)
         return 16
+    
+    def haltBugFetchNextInstruction(self):
+        pc = self.regPC.read()
+        instruction = bytearray([
+            self.mmu.read(pc), 
+            self.mmu.read(pc), 
+            self.mmu.read(pc + 1)
+            ])
+        self.nextInstruction = instruction
+        self.haltBug = 0
+
     
     #combine 2 char into short
     def combineTwoChar(self, highChar, lowChar):
@@ -1298,8 +1256,14 @@ class Cpu():
         return 8
 
     def op76(self, instruction):
-        self.halt = 1
-        #print("HALT")
+        if self.interrupts.IME == 0:
+            if self.mmu.read(0xff0f) & self.mmu.read(0xffff):
+                print("HALT BUG")
+                self.haltBug = 1
+                return 4
+
+            
+        self.run = 0
         return 4
 
     def op77(self, instruction):
@@ -1331,7 +1295,7 @@ class Cpu():
         return 4
 
     def op7e(self, instruction):
-        self.regL.load(self.mmu.read(self.regHL.read()))
+        self.regA.load(self.mmu.read(self.regHL.read()))
         return 8
 
     def op7f(self, instruction):
@@ -1927,7 +1891,7 @@ class Cpu():
         h, l = self.splitShort(self.regAF.read())
         sp = self.regSP.read()
         self.mmu.write(sp - 1, h)
-        self.mmu.write(sp - 2, l)
+        self.mmu.write(sp - 2, l & 0xf0)
         self.regSP.rawSub(2)
         return 16
 
