@@ -6,6 +6,9 @@ import time
 interruptVblank = 0x01
 interruptLCDC = 0x02
 
+lyMatchFlag = 0x4
+lyMatchReset = 0xfb
+
 inturruptModeLineMatch = 0x40
 inturruptMode2 = 0x20
 inturruptMode1 = 0x10
@@ -32,8 +35,7 @@ class DMG_gpu():
 
     FPS = 60
     frame = 0
-    linePosition = 0
-    lineNumber = 0    
+    linePosition = 0   
     mode = 2
     t0 = time.time()
     t1 = time.time()
@@ -64,8 +66,19 @@ class DMG_gpu():
         self.screen = pygame.display.set_mode((160, 144), depth=8)
 
     def printStatus(self):
-        print(f"0xff40:0x{self.mmu.read(0xff40):02x}"
-              f"0xff44:0x{self.mmu.read(0xff44):02x}")
+        print(f"lcdc:{hex(self.lcdc)} "
+              f"stat:{hex(self.stat)} "
+              f"scy:{hex(self.scy)} "
+              f"scx:{hex(self.scx)} "
+              f"ly:{hex(self.ly)} "
+              f"lyc:{hex(self.lyc)} "
+              f"bgPallet:{hex(self.bgPallet)} "
+              f"obPallet0:{hex(self.obPallet0)} "
+              f"obPallet1:{hex(self.obPallet1)} "
+              f"WY:{hex(self.WY)} "
+              f"WX:{hex(self.WX)} "
+              f"linePosition: {self.linePosition} "
+              f"mode: {self.mode}")
     
     def step(self, ticks):
         if self.lcdc & 0x80:
@@ -75,11 +88,11 @@ class DMG_gpu():
     def incrementLine(self):
         self.mmu.write(0xff44, self.ly + 1)
         if self.ly == self.lyc:
-            self.mmu.write(0xff41, self.stat | 0x4)
+            self.mmu.write(0xff41, self.stat | lyMatchFlag)
             if self.stat & inturruptModeLineMatch:
                 self.mmu.write(0xff0f, self.mmu.read(0xff0f) | interruptLCDC)
             else:
-                self.mmu.write(0xff41, self.stat & 0x4)
+                self.mmu.write(0xff41, self.stat & lyMatchReset)
 
     def lcdMode0(self):
         if self.linePosition > 455:
@@ -112,7 +125,7 @@ class DMG_gpu():
         if inturruptModeLookup[mode] & self.stat:
             self.mmu.write(0xff0f, self.mmu.read(0xff0f) | interruptLCDC)
         value = self.stat & 0xfc #clear last 2 bits
-        self.mmu.write(0xff41, value | mode) #write back with new mode
+        self.mode = mode
 
     def hBlank(self):
         lineData = self.renderLine(self.ly)
