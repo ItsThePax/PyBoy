@@ -168,14 +168,22 @@ class Mmu:
                 self.timer.run = value & 0x4
                 self.timer.mode = value & 0x3
             elif address == 0xff40:
+                prev = self.memory[address] & 0x80
                 self.memory[address] = value
                 self.gpu.lcdc = value
                 if value & 0x80 == 0:
                     self.write(0xff44, 0)
+                else:
+                    if prev == 0:
+                        self.gpu.mode = 2
+                        self.gpu.linePosition = 0
+                        self.write(0xff44, 0)
             elif address == 0xff41:
+                old = self.memory[address]
                 self.memory[address] = value
-                self.gpu.stat = value
-                self.gpu.mode = value & 0x3
+                mode = self.memory[address] & 0x3
+                value &= 0xfc # clear last 2 bits of value
+                self.gpu.stat = value | mode
             elif address == 0xff42:
                 self.memory[address] = value
                 self.gpu.scy = value
