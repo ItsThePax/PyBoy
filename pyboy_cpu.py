@@ -1,12 +1,13 @@
-import pyboy_mmu
 import debug
 
 
 #static masks for easy bit manipulation
-setBitMasks = bytes([0x1, 0x2, 0x4, 0x8, 
-                     0x10, 0x20, 0x40, 0x80])
-resetBitMasks = bytes([0xfe, 0xfd, 0xfb, 0xf7, 
-                       0xef, 0xdf, 0xbf, 0x7f])
+setBitMasks = bytes([
+    0x1, 0x2, 0x4, 0x8, 
+    0x10, 0x20, 0x40, 0x80])
+resetBitMasks = bytes([
+    0xfe, 0xfd, 0xfb, 0xf7, 
+    0xef, 0xdf, 0xbf, 0x7f]) 
 
 
 #flag mappings
@@ -347,8 +348,8 @@ class Register8bit:
             newFlags |= flagZero
         flags.load(newFlags)
 
-    def swap(self, flags): #no flag mask, alsways affects all flags
-        temp = self.value[0] & 0xff << 4
+    def swap(self, flags):
+        temp = (self.value[0] & 0xf) << 4
         self.value[0] >>= 4
         self.value[0] += temp
         if self.value[0] == 0:
@@ -378,7 +379,7 @@ class Register8bit:
         flags.load(newFlags)        
 
 class Cpu():
-    def __init__(self, cartridgeRomPath, biosRomPath):
+    def __init__(self, mmu):
         #registers
         #f: Z S H C X X X X        
         #a 0, f 1, b 2, c 3, d 4, e 5, h 6, l 7
@@ -564,7 +565,7 @@ class Cpu():
         self.nextInstruction = bytearray([0, 0, 0])
         
         #setup mmu
-        self.mmu = pyboy_mmu.Mmu(cartridgeRomPath, biosRomPath)
+        self.mmu = mmu
         return
     
     #is the cpu in a running state
@@ -668,16 +669,16 @@ class Cpu():
         print("")
         pc = self.regPC.read()
         print(f'PC is at:{hex(pc)}', end=" --- ")
-        
+        temp = []
         for i in range(self.opcodeLength[self.mmu.read(pc)]):
             print (hex(self.mmu.read(pc + i)), end=" ")
+            temp.append(self.mmu.read(pc + i))
         registers = [self.regSP.read(), self.regPC.read()]
         opcodeString = debug.formatOpcodeName(
-            self.nextInstruction, 
-            self.opcodeLength[self.nextInstruction[0]], 
+            temp, 
+            self.opcodeLength[temp[0]], 
             registers)
-        print(f'--- {opcodeString}'
-        )
+        print(f'--- {opcodeString}')
     pni = printNextInstruction
     
     def executeNextInstruction(self):

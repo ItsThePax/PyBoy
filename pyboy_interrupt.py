@@ -1,10 +1,14 @@
-
-
 interruptVblank = 0x01
 interruptLCDC = 0x02
 interruptTimer = 0x04
 interruptSerial = 0x08
 interruptControls = 0x10
+
+resetVblank = 0xfe
+resetLCDC = 0xfd
+resetTimer = 0xfb
+resetSerial = 0xf7
+resetControls = 0xef
 
 
 vectorVblank = 0x40
@@ -24,35 +28,31 @@ class InterruptHandler:
         self.mmu = mmu
 
     IME = 0
-
+    
     def reset(self):
         self.IME = 0
 
     def step(self):
-        interruptTriggered = self.mmu.read(0xff0f) & self.mmu.read(0xffff)
+        interruptTriggered = (self.mmu.interruptEnabled 
+                              & self.mmu.registers[0x0f])
         if self.IME:
             if interruptTriggered:
                 self.cpu.run = 1
                 self.IME = 0
                 if interruptTriggered & interruptVblank:
-                    self.mmu.write(0xff0f, 
-                                   self.mmu.read(0xff0f) & resetBitMasks[0])
+                    self.mmu.registers[0x0f]  &= resetVblank
                     return self.cpu.serviceInterrupt(vectorVblank)
                 if interruptTriggered & interruptLCDC:
-                    self.mmu.write(0xff0f, 
-                                   self.mmu.read(0xff0f) & resetBitMasks[1])
+                    self.mmu.registers[0x0f]  &= resetLCDC
                     return self.cpu.serviceInterrupt(vectorLCDC)
                 if interruptTriggered & interruptTimer:
-                    self.mmu.write(0xff0f, 
-                                   self.mmu.read(0xff0f) & resetBitMasks[2])
+                    self.mmu.registers[0x0f]  &= resetTimer
                     return self.cpu.serviceInterrupt(vectorTimer)
                 if interruptTriggered & interruptSerial:
-                    self.mmu.write(0xff0f, 
-                                   self.mmu.read(0xff0f) & resetBitMasks[3])
+                    self.mmu.registers[0x0f]  &= resetSerial
                     return self.cpu.serviceInterrupt(vectorSerial)
                 if interruptTriggered & interruptControls:
-                    self.mmu.write(0xff0f, 
-                                   self.mmu.read(0xff0f) & resetBitMasks[4])
+                    self.mmu.registers[0x0f]  &= resetControls
                     return self.cpu.serviceInterrupt(vectorControls)
         else:
             if interruptTriggered:

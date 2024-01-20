@@ -24,43 +24,149 @@ ramMode = {
 
 class Mmu:
     def __init__(self, cartridgeRomPath, biosRomPath):
-        #set up randomized memory
-        self.memory = bytearray([])
-        for i in range(0x10000):
-            #self.memory.append(random.randint(0x0, 0xff))
-            self.memory.append(0)
-        
         #load cartridge and bios files
         self.cartridgeRom = bytes(self.loadFile(cartridgeRomPath))
         self.biosRom = bytes(self.loadFile(biosRomPath))
+        
+        #set up memory
+        self.vram = bytearray([0] * 0x2000)
+        self.internalRam = bytearray([0] * 0x2000)
+        self.oam = bytearray([0] * 0xa0)
+        self.hiRam = bytearray([0] * 0x80)
 
+        #set up control registers
+        self.registers = bytearray([
+            #controls
+            0,
+
+            #serial
+            0xff, 0xff, 
+            
+            #none
+            0xff,
+
+            #timer
+            0, 0, 0, 0,  
+            
+            #none
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            
+            #interrupts
+            0, 
+
+            #sound
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            
+            #gpu
+            0, 0, 0, 
+            0, 0, 0, 
+            
+            #dma
+            0xff, 
+
+            #gpu 
+            0, 0, 0, 
+            0, 0, 
+            
+            #none
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff
+        ])
+
+        #masks for setting disabled bits on registers
+        self.registerMasks = bytearray([
+            #controls
+            0xcf,
+
+            #serial
+            0x0, 0x7e,
+            
+            #none
+            0xff,
+
+            #timer
+            0x0, 0x0, 0x0, 0xf8,  
+            
+            #none
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            
+            #interrupts
+            0xe0, 
+
+            #sound #TODO
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            
+            #gpu
+            0x0, 0x80, 0x0, 
+            0x0, 0x0, 0x0,
+            
+            #dma
+            0xff, 
+
+            #gpu 
+            0x0, 0x0, 0x0, 0x0, 0x0,
+            
+            #none
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 
+            0xff, 0xff, 0xff, 0xff
+        ])
+
+        self.interruptEnabled = 0
+        
         #set up functions for correct memory controller version
-        self.readWriteFunction = {
-            0: {
-                    "read":self.readRomOnlyWithBios, 
-                    "write":self.writeRomOnly
-            },
-            #1: {
-            #        "read":self.readRomAndRamWithBios, 
-            #        "write":self.writeRomAndRam
-            #}  
-            2: {    "read":self.readMC1WithBios,
-                    "write":self.writeMC1
-            
-            
-            }
-        }
-
         self.mmuType = self.rawReadCartridge(0x147)
         self.romType = self.rawReadCartridge(0x148)
         self.ramType = self.rawReadCartridge(0x149)
-        self.ram = bytearray([0] * (ramPageSize * ramMode[self.ramType]))
-        self.read = self.readWriteFunction[cartMbcMap[self.mmuType]]["read"]
-        self.write = self.readWriteFunction[cartMbcMap[self.mmuType]]["write"]
-    
-    # 0 controls rom, 1 controlls ram
-    MC1RomRamSelector = 0
+        self.externalRam = bytearray([0] * (ramPageSize * ramMode[self.ramType]))
 
+        self.MCWriteFuncs = [
+           self.writeMemControlerNone,
+           self.writeMemControlerMC1,
+           self.writeMemControlerMC2,
+           self.writeMemControlerMC3
+        ] 
+
+        self.read = self.readWithBios
+
+        if self.ramType == 0:
+            self.readExternalRam = self.readExternalRamNone
+            self.writeExternalRam = self.writeExternalRamNone
+        else:
+            self.readExternalRam = self.readExternalRamBanked
+            self.writeExternalRam = self.writeExternalRamBanked
+        
+        if self.romType == 0:
+            self.readCart = self.readCartNoBanks
+        else:
+            self.readCart = self.readCartBanked 
+        
+        self.writeMemControler = self.MCWriteFuncs[cartMbcMap[self.mmuType]]
+        
+
+    #mc1 specific
+    mc1Mode = 0
+
+    #generic
     mmuType = 0
     romType = 0
     ramType = 0 
@@ -72,26 +178,12 @@ class Mmu:
     buttons = 0xf
     dpad = 0xf
 
-    #reset mmu to power-on state
-    def reset(self):
-        self.MC1RomRamSelector = 0
-        self.romBank = 1
-        self.ramBank = 0
-        self.ramWriteProtect = 1
-        self.buttons = 0xf
-        self.dpad = 0xf
-        self.read = self.readWriteFunction[cartMbcMap[self.mmuType]]["read"]
-        self.write = self.readWriteFunction[cartMbcMap[self.mmuType]]["write"]
-        self.memory = bytearray([])
-        for i in range(0x10000):
-            self.memory.append(random.randint(0x0, 0xff))
-
     #returns contents of controlls register 0xff00
     def getControls(self):
-        controls = self.memory[0xff00]
-        if controls & 0x2f == 20:
+        controls = self.registers[0] & 0xf0
+        if controls & 0x30 == 0x20:
             return controls | self.dpad
-        if controls & 0x1f == 0x10:
+        if controls & 0x30 == 0x10:
             return controls | self.buttons
         return controls | 0xf
 
@@ -104,194 +196,121 @@ class Mmu:
     def rawReadCartridge(self, address):
         return self.cartridgeRom[address]
     
-     # raw memory read
+     # raw memory read #TODO rewrite
     def rawReadMemory(self, address):
         return self.memory[address]
         
-    # raw memory write
+    # raw memory write #TODO rewrite
     def rawWriteMemory(self, address, value):
-        self.memory[address] = value & 0xff    
-    
-    #ROM only
-    #use this fucntion to read while bios is active
-    def readRomOnlyWithBios(self, address):
+        self.memory[address] = value & 0xff 
+
+    def readWithBios(self, address):
         if address < 0x100:
             return self.biosRom[address]
-        else:
-            return self.readRomOnly(address)
+        return self.readWithoutBios(address)
+
+    def readWithoutBios(self, address):
+        if address < 0x8000:
+            return self.readCart(address)
+        if address >= 0xff00:                                #0x8000 - 0xffff
+            if address == 0xffff:                               #0xffff
+                return self.interruptEnabled                
+            if address >= 0xff80:               
+                return self.hiRam[address % 0x80]
+            if address == 0xff00:                       #0xff80 - 0xfffe
+                    return self.getControls() 
+            return self.registers[address % 0x80]           #0xff00 - 0xff7f
+        if address < 0xa000:
+            return self.vram[address % 0x2000]              #0x8000 - 0x9fff
+        if address < 0xc000:
+            return self.readExternalRam(address % 0x2000)   #0xa000 - 0xbfff
+        if address < 0xfe00:
+            return self.internalRam[address % 0x2000]
+        if address < 0xfea0:
+            return self.oam[address % 0x100]
+        return 0xff
     
-    #use this function to read after bios has been disabled
-    def readRomOnly(self, address):
-        if address > 0x7fff:
-            if address & 0xe000 == 0xa000:
-                return 0xff
-            else:
-                if address == 0xff00:
-                    return self.getControls()
-                else:
-                    return self.memory[address]
-        else:
-            return self.cartridgeRom[address]
-        
-    #write to Rom only #TODO make this not suck later
-    def writeRomOnly(self, address, value):
-        if value > 0xff:
-            print(f"WARNING: something tried to write "
-                  f"{hex(value)} to address {hex(address)}")
-            value &= 0xff
-        if 0x8000 <= address < 0xa000:
-            self.memory[address] = value
-        elif 0xc000 <= address < 0xde00:
-            self.memory[address] = value
-            self.memory[address + 0x2000] = value
-        elif 0xde00 <= address < 0xe000:
-            self.memory[address] = value
-        elif 0xe000 <= address < 0xfe00:
-            self.memory[address] = value
-            self.memory[address - 0x2000] = value
-        elif 0xfe00 <= address < 0xfea0:
-            self.memory[address] = value
-        elif 0xff00 <= address < 0x10000:
-            if address == 0xff00:
-                self.memory[0xff00] = value & 0xf0
-            elif address == 0xff04:
-                self.memory[address] = 0
-                self.timer.divH  = 0
-            elif address == 0xff05:
-                self.memory[address] = value
-                self.timer.tima = value
-            elif address == 0xff06:
-                self.memory[address] = value
-                self.timer.tma = value
-            elif address == 0xff07:
-                self.memory[address] = value
-                self.timer.run = value & 0x4
-                self.timer.mode = value & 0x3
-            elif address == 0xff40:
-                prev = self.memory[address] & 0x80
-                self.memory[address] = value
-                self.gpu.lcdc = value
+    def write(self, address, value):
+        if address < 0x8000:
+            return self.writeMemControler(address, value)
+        if address >= 0xff00:                                         
+            if address >= 0xff80:                            
+                if address == 0xffff:                              
+                    self.interruptEnabled = value
+                    return
+                self.hiRam[address % 0x80] = value
+                return
+            
+            address %= 0x80
+            if address == 0x50:
+                self.read = self.readWithoutBios
+                return
+            
+            elif address == 4:
+                self.registers[0x4] = 0
+                return
+            
+            elif address == 0x40:
                 if value & 0x80 == 0:
-                    self.write(0xff44, 0)
-                else:
-                    if prev == 0:
-                        self.gpu.mode = 2
-                        self.gpu.linePosition = 0
-                        self.write(0xff44, 0)
-            elif address == 0xff41:
-                old = self.memory[address]
-                self.memory[address] = value
-                mode = self.memory[address] & 0x3
-                value &= 0xfc # clear last 2 bits of value
-                self.gpu.stat = value | mode
-            elif address == 0xff42:
-                self.memory[address] = value
-                self.gpu.scy = value
-            elif address == 0xff43:
-                self.memory[address] = value
-                self.gpu.scx = value
-            elif address == 0xff44:
-                self.memory[address] = value
-                self.gpu.ly = value
-            elif address == 0xff45:
-                self.memory[address] = value
-                self.gpu.lyc = value
-            elif address == 0xff46:
-                # do dma
-                pass
-            elif address == 0xff47:
-                self.memory[address] = value
-                self.gpu.bgPallet = value
-            elif address == 0xff48:
-                self.memory[address] = value
-                self.gpu.obPallet0 = value
-            elif address == 0xff49:
-                self.memory[address] = value
-                self.gpu.obPallet1 = value
-            elif address == 0xff4a:
-                self.memory[address] = value
-                self.gpu.wy = value
-            elif address == 0xff4b:
-                self.memory[address] = value
-                self.gpu.wx = value
-            elif address == 0xff50:
-                self.read = self.readRomOnly
-            else:
-                self.memory[address] = value
+                    self.registers[0x44] = 0
+                    self.gpu.linePosition = 0
+            
+            elif address == 0x41:
+                value &= 0x78 # mask off read only bits
+                self.registers[0x41] == value | 0x80  
+                return
+            
+            elif address == 0x44:
+                return
+            elif address == 0x50:
+                self.read = self.readWithoutBios
+            self.registers[address] = value | self.registerMasks[address]          #0xff00 - 0xff7f
+            return
+        if address < 0xa000:
+            self.vram[address % 0x2000] = value              #0x8000 - 0x9fff
+            return
+        if address < 0xc000:
+            return self.writeExternalRam(address % 0x2000, value)   #0xa000 - 0xbfff
+        if address < 0xfe00:
+            self.internalRam[address % 0x2000] = value
+            return
+        if address < 0xfea0:
+            self.oam[address % 0x100] = value
+            return
+    
 
+    def readCartNoBanks(self, address):
+        return self.cartridgeRom[address] 
     
+    def readExternalRamNone(self, address):
+        return 0xff
     
+    def writeExternalRamNone(self, address, value):
+        return
     
+    def readCartBanked(self, address):
+        #TODO
+        return 0xff
     
+    def readExternalRamBanked(self, address,  value):
+        #TODO
+        return 
     
+    def writeExternalRamBanked(self, address, value):
+        #TODO
+        return
     
+    def writeMemControlerNone(self, address, value):
+        return
     
+    def writeMemControlerMC1(self, address, value):
+        #TODO
+        return
     
+    def writeMemControlerMC2(self, address, value):
+        #TODO
+        return
     
-    
-    
-    
-    
-    #MC1
-    #use this fucntion to read while bios is active
-    def readMC1WithBios(self, address):
-        if address < 0x100:
-            return self.biosRom[address]
-        else:
-            return self.readMC1(address)
-    
-    #use this function to read after bios has been disabled
-    def readMC1(self, address):
-        if address > 0x7fff:
-            if address & 0xe000 == 0xa000:
-                return 0xff
-            else:
-                return self.memory[address]
-        else:
-            if address < 0x4000:
-                return self.cartridgeRom[address]
-            else:
-                return self.cartridgeRom[
-                    (romBankSize * self.romBank) 
-                    + (address & 0x3fff)]
-
-    #write to mc1 #TODO make this not suck later
-    def writeMC1(self, address, value):
-        if value > 0xff:
-            print(f"WARNING: something tried to write "
-                  f"{hex(value)} to address {hex(address)}")
-            value &= 0xff
-        if 0x0 <= address < 0x8000:
-            if address < 0x2000:
-                if value == 0xa:
-                    self.writeProtect = 0
-                else:
-                    self.writeProtect = 1
-            elif address < 0x4000:
-                self.romBank = (self.romBank & 0xe0) | value 
-            elif address < 0x6000:
-                if self.MC1RomRamSelector == 0:
-                    self.romBank = (self.romBank & 0x1f) | (value << 5)
-                else:
-                    self.ramBank = value
-            else:
-                self.MC1RomRamSelector = value
-        elif 0x8000 <= address < 0xa000:
-            self.memory[address] = value
-        elif 0xc000 <= address < 0xde00:
-            self.memory[address] = value
-            self.memory[address + 0x2000] = value
-        elif 0xde00 <= address < 0xe000:
-            self.memory[address] = value
-        elif 0xe000 <= address < 0xfe00:
-            self.memory[address] = value
-            self.memory[address - 0x2000] = value
-        elif 0xfe00 <= address < 0xfea0:
-            self.memory[address] = value
-        elif 0xff00 <= address < 0x10000:
-            if address == 0xff00:
-                self.memory[0xff00] = value & 0xf0
-            if address == 0xff50:
-                self.read = self.readMC1
-            else:
-                self.memory[address] = value
+    def writeMemControlerMC3(self, address, value):
+        #TODO
+        return

@@ -5,6 +5,7 @@ import time
 
 interruptVblank = 0x01
 interruptLCDC = 0x02
+interruptControls = 0x10
 
 lyMatchFlag = 0x4
 lyMatchReset = 0xfb
@@ -40,18 +41,7 @@ class DMG_gpu():
     t0 = time.time()
     t1 = time.time()
 
-    #status registers
-    lcdc = 0
-    stat = 0
-    scy = 0
-    scx = 0
-    ly = 0
-    lyc = 0
-    bgPallet = 0
-    obPallet0 = 0
-    obPallet1 = 0
-    WY = 0
-    WX = 0
+    
     
     frameBuffer = bytearray([0] * (160 * 144))
 
@@ -67,11 +57,11 @@ class DMG_gpu():
 
     def printStatus(self):
         print(f"lcdc:{hex(self.lcdc)} "
-              f"stat:{hex(self.stat)} "
-              f"scy:{hex(self.scy)} "
-              f"scx:{hex(self.scx)} "
-              f"ly:{hex(self.ly)} "
-              f"lyc:{hex(self.lyc)} "
+              f"stat:{hex(self.mmu.registers[0x41])} "
+              f"scy:{hex(self.mmu.registers[0x42])} "
+              f"scx:{hex(self.mmu.registers[0x43])} "
+              f"ly:{hex(self.mmu.registers[0x44])} "
+              f"lyc:{hex(self.mmu.registers[0x45])} "
               f"bgPallet:{hex(self.bgPallet)} "
               f"obPallet0:{hex(self.obPallet0)} "
               f"obPallet1:{hex(self.obPallet1)} "
@@ -81,24 +71,24 @@ class DMG_gpu():
               f"mode: {self.mode}")
     
     def step(self, ticks):
-        if self.lcdc & 0x80:
+        if self.mmu.registers[0x40] & 0x80:
             self.linePosition += ticks
             self.lcdModeFunctions[self.mode]()
 
     def incrementLine(self):
-        self.mmu.write(0xff44, self.ly + 1)
-        if self.ly == self.lyc:
-            self.mmu.write(0xff41, self.stat | lyMatchFlag)
-            if self.stat & inturruptModeLineMatch:
-                self.mmu.write(0xff0f, self.mmu.read(0xff0f) | interruptLCDC)
+        self.mmu.registers[0x44] += 1
+        if self.mmu.registers[0x44] == self.mmu.registers[0x45]:
+            self.mmu.registers[0x41] |= lyMatchFlag
+            if self.mmu.registers[0x41] & inturruptModeLineMatch:
+                self.interrupts.IF |= interruptLCDC
             else:
-                self.mmu.write(0xff41, self.stat & lyMatchReset)
+                self.mmu.registers[0x41] &= lyMatchReset
 
     def lcdMode0(self):
         if self.linePosition > 455:
             self.linePosition %= 456
             self.incrementLine()
-            if self.ly == 144:  # vblank
+            if self.mmu.registers[0x44] == 144:  # vblank
                 self.updateLCDMode(1)
                 self.vBlank()
             else:
@@ -108,8 +98,8 @@ class DMG_gpu():
         if self.linePosition > 455:
             self.linePosition %= 456
             self.incrementLine()
-            if self.ly == 154:
-                self.mmu.write(0xff44, 0)
+            if self.mmu.registers[0x44] == 154:
+                self.mmu.registers[0x44] = 0
                 self.updateLCDMode(2)
             
     def lcdMode2(self):
@@ -122,13 +112,13 @@ class DMG_gpu():
             self.hBlank()
 
     def updateLCDMode(self, mode):
-        if inturruptModeLookup[mode] & self.stat:
-            self.mmu.write(0xff0f, self.mmu.read(0xff0f) | interruptLCDC)
-        value = self.stat & 0xfc #clear last 2 bits
+        if inturruptModeLookup[mode] & self.mmu.registers[0x41]:
+            self.interrupts.IF |= interruptLCDC
         self.mode = mode
+        self.mmu.registers[0x41] = (self.mmu.registers[0x41] & 0xfc) | mode
 
     def hBlank(self):
-        lineData = self.renderLine(self.ly)
+        lineData = self.renderLine(self.mmu.registers[0x44])
         for i in range(160):
             self.frameBuffer.append(lineData[i])
 
@@ -137,29 +127,29 @@ class DMG_gpu():
         b.resize((144, 160))
         surf = pygame.surfarray.make_surface(np.flipud(np.rot90(b)))
         self.screen.blit(surf, ((0, 0)))
-        self.clock.tick(self.FPS)
+        #self.clock.tick(self.FPS)
         pygame.display.update()
         self.getControls()
         self.frameBuffer = bytearray([])
         self.frame += 1
         if self.frame % 60 == 0:
             self.t1 = time.time()
-            print((1/(self.t1 - self.t0)) * 60)
+            print((1/(self.t1 - self.t0)) * 60) # print approx fps
             self.t0 = time.time()
-        self.mmu.write(0xff0f, self.mmu.read(0xff0f) | interruptVblank)
+        self.mmu.registers[0x0f] |= interruptVblank
 
     def renderLine(self, lineNumber):
         bgColorMap = bytearray([0, 0, 0, 0])
         for i in range (4):
-            bgColorMap[i] = (self.bgPallet >> (i*2)) & 0x3
+            bgColorMap[i] = (self.mmu.registers[0x47] >> (i*2)) & 0x3
         #bg
-        bgIndexLocation = 0x9800 + (self.lcdc & 0x8 * 0x80)
-        bgDataLocation = 0x8000 + (self.lcdc & 0x10 * 0x80)
+        bgIndexLocation = 0x9800 + (self.mmu.registers[0x40] & 0x8 * 0x80)
+        bgDataLocation = 0x8000 + (self.mmu.registers[0x40] & 0x10 * 0x80)
         self.formatIndex = self.formatIndexTable[bgDataLocation]
-        tileY = (((lineNumber + self.scy) >> 3) * 32) % 1024
-        lineInTile = (lineNumber + self.scy) % 8
+        tileY = (((lineNumber + self.mmu.registers[0x42]) >> 3) * 32) % 1024
+        lineInTile = (lineNumber + self.mmu.registers[0x42]) % 8
         colorData = bytearray([0] * 512)
-        startByte = self.scx // 8
+        startByte = self.mmu.registers[0x43] // 8
         for i in range(startByte, startByte + 42, 2):
             tileIndex = self.formatIndex(self.mmu.read(bgIndexLocation 
                                                         + (tileY + (i >> 1))))
@@ -177,15 +167,15 @@ class DMG_gpu():
                 if colorByteLow & bitMasks[j]:
                     temp += 1
                 colorData[(i * 4) + j] = valueToColorMapping[bgColorMap[temp]]
-        return np.roll(colorData, self.scx)[0:160] 
+        return np.roll(colorData, self.mmu.registers[0x43])[0:160] 
 
     def getControls(self):
         events = pygame.event.get()
         for event in events:
             if event.type == 768:
                 if event.key == 97: #a
-                    self.mmu.buttons &= resetBitMasks[0]
                     print (f"pressed a, {self.mmu.buttons}")
+                    self.mmu.buttons &= resetBitMasks[0]
                 elif event.key == 115: #b
                     print (f"pressed b, {self.mmu.buttons}")
                     self.mmu.buttons &= resetBitMasks[1]
@@ -207,7 +197,7 @@ class DMG_gpu():
                 elif event.key == 1073741905: #down
                     print (f"pressed down, {self.mmu.dpad}")
                     self.mmu.dpad &= resetBitMasks[3]
-                self.mmu.write(0xff0f,  self.mmu.read(0xff0f) | 0x10)
+                self.mmu.registers[0x0f] |= interruptControls
             elif event.type == 769:
                 if event.key == 97: #a
                     print (f"released a, {self.mmu.buttons}")
@@ -239,21 +229,9 @@ class DMG_gpu():
         for i in range(0x8000, 0xa000):  
             vram.append(self.mmu.read(i))
         for i in range(0, len(vram), 16):
-            print(f"0x{i + 0x8000:04x}: "
-                  f"{vram[i + 0]:02x} {vram[i + 1]:02x} {vram[i + 2]:02x} "
-                  f"{vram[i + 3]:02x} {vram[i + 4]:02x} {vram[i + 5]:02x} "
-                  f"{vram[i + 6]:02x} {vram[i + 7]:02x} {vram[i + 8]:02x} "
-                  f"{vram[i + 9]:02x} {vram[i + 10]:02x} {vram[i + 11]:02x} "
-                  f"{vram[i + 12]:02x} {vram[i + 13]:02x} {vram[i + 14]:02x} " 
-                  f"{vram[i + 15]:02x}")
+            outString = f"0x{i + 0x8000:04x}: "
+            for j in range(16):
+                outString += f"{vram[i + j]:02x} "
+            print(outString)
+                
     
-    def renderCurrentFrameDB(self):
-        for i in range(144):
-            self.renderLine(i)
-        b = np.array(self.frameBuffer)
-        b.resize((144, 160))
-        surf = pygame.surfarray.make_surface(np.flipud(np.rot90(b)))
-        self.screen.blit(surf, ((0, 0)))
-        self.clock.tick(self.FPS)
-        pygame.display.update()
-        pygame.event.get()

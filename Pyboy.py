@@ -4,22 +4,28 @@ import pyboy_cpu
 import pyboy_gpu
 import pyboy_interrupt
 import pyboy_timer
+import pyboy_mmu
 
 random.seed()
 
 biosFile = "DMG_quickboot.bin"
-cartridgeFile = "halt_bug.gb"
+cartridgeFile = "Tetris.gb"
 
 class Pyboy:
     def __init__(self, cartridgeFile, biosFile):
-        self.cpu = pyboy_cpu.Cpu(cartridgeFile, biosFile)
-        self.mmu = self.cpu.mmu
+        #TODO clean up this mess
+        self.mmu = pyboy_mmu.Mmu(cartridgeFile, biosFile)
+        self.cpu = pyboy_cpu.Cpu(self.mmu)
         self.gpu = pyboy_gpu.DMG_gpu(self.mmu)
         self.interrupts = pyboy_interrupt.InterruptHandler(self.cpu, self.mmu)
         self.timer = pyboy_timer.Timer(self.mmu)
         self.cpu.interrupts = self.interrupts
         self.mmu.timer = self.timer
+        self.timer.interrupts = self.interrupts
         self.mmu.gpu = self.gpu
+        self.mmu.interrupts = self.interrupts
+        self.gpu.interrupts = self.interrupts
+
     
     def run(self):
         while (True):  # run forever until error or break
@@ -76,12 +82,6 @@ class Pyboy:
             self.runTo(self.cpu.regPC.read() 
                        + self.cpu.opcodeLength[self.cpu.nextInstruction[0]])
         self.cpu.ps()
-
-    def reset(self):
-        self.cpu.reset()
-        self.mmu.reset()
-        self.gpu.reset()
-        self.interrupts.reset()
 
     def memDump(self):
         mem = bytearray([])
