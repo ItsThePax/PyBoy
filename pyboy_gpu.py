@@ -29,15 +29,15 @@ class DMG_gpu():
                                  self.lcdMode2, self.lcdMode3]
         self.screen = pygame.display.set_mode((160, 144), depth=8)
         self.clock = pygame.time.Clock()
-        self.formatIndexTable = {
-            0x8000: self.formatIndexU,
-            0x8800: self.formatIndexS
-        }
+        self.formatIndexTable = [
+            self.formatIndexU,
+            self.formatIndexS
+        ]
 
     FPS = 60
     frame = 0
     linePosition = 0   
-    mode = 2
+    mode = 0
     t0 = time.time()
     t1 = time.time()
 
@@ -50,25 +50,26 @@ class DMG_gpu():
 
     def formatIndexS(self, index):
         index &= 0xff
-        return (index ^ 0x80) - 0x80
+        return (index ^ 0x80) + 0x80
 
     def reset(self):
         self.screen = pygame.display.set_mode((160, 144), depth=8)
 
     def printStatus(self):
-        print(f"lcdc:{hex(self.lcdc)} "
+        print(f"lcdc:{hex(self.mmu.registers[0x40])} "
               f"stat:{hex(self.mmu.registers[0x41])} "
               f"scy:{hex(self.mmu.registers[0x42])} "
               f"scx:{hex(self.mmu.registers[0x43])} "
               f"ly:{hex(self.mmu.registers[0x44])} "
               f"lyc:{hex(self.mmu.registers[0x45])} "
-              f"bgPallet:{hex(self.bgPallet)} "
-              f"obPallet0:{hex(self.obPallet0)} "
-              f"obPallet1:{hex(self.obPallet1)} "
-              f"WY:{hex(self.WY)} "
-              f"WX:{hex(self.WX)} "
+              f"bgPallet:{hex(self.mmu.registers[0x47])} "
+              f"obPallet0:{hex(self.mmu.registers[0x48])} "
+              f"obPallet1:{hex(self.mmu.registers[0x49])} "
+              f"WY:{hex(self.mmu.registers[0x4a])} "
+              f"WX:{hex(self.mmu.registers[0x4b])} "
               f"linePosition: {self.linePosition} "
               f"mode: {self.mode}")
+    ps = printStatus
     
     def step(self, ticks):
         if self.mmu.registers[0x40] & 0x80:
@@ -145,21 +146,25 @@ class DMG_gpu():
         #bg
         bgIndexLocation = 0x9800 + (self.mmu.registers[0x40] & 0x8 * 0x80)
         bgDataLocation = 0x8000 + (self.mmu.registers[0x40] & 0x10 * 0x80)
-        self.formatIndex = self.formatIndexTable[bgDataLocation]
+        self.formatIndex = self.formatIndexTable[self.mmu.registers[0x40] & 0x10 >> 4]
         tileY = (((lineNumber + self.mmu.registers[0x42]) >> 3) * 32) % 1024
         lineInTile = (lineNumber + self.mmu.registers[0x42]) % 8
         colorData = bytearray([0] * 512)
         startByte = self.mmu.registers[0x43] // 8
         for i in range(startByte, startByte + 42, 2):
-            tileIndex = self.formatIndex(self.mmu.read(bgIndexLocation 
-                                                        + (tileY + (i >> 1))))
-            colorByteLow = self.mmu.read(bgDataLocation 
-                                          + (tileIndex << 4) 
-                                          + (lineInTile << 1))
-            colorByteHigh = self.mmu.read(bgDataLocation 
-                                         + (tileIndex << 4) 
-                                         + (lineInTile << 1)
-                                         + 1)
+            tileIndex = self.formatIndex(
+                self.mmu.read(
+                    bgIndexLocation 
+                     + (tileY + (i >> 1))))
+            colorByteLow = self.mmu.read(
+                bgDataLocation 
+                 + (tileIndex << 4) 
+                 + (lineInTile << 1))
+            colorByteHigh = self.mmu.read(
+                bgDataLocation 
+                 + (tileIndex << 4) 
+                 + (lineInTile << 1)
+                 + 1)
             for j in range(8):
                 temp = 0
                 if colorByteHigh & bitMasks[j]:

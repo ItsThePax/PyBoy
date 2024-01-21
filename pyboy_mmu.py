@@ -5,9 +5,9 @@ random.seed()
 
 cartMbcMap = {
     0x00:0,
-    0x01:2, 0x02:2, 0x03:2,
+    0x01:1, 0x02:1, 0x03:1,
     0x05:2, 0x06:2,
-    0x08:1, 0x09:1,
+    0x08:0, 0x09:0,
     0x0f:3, 0x10:3, 0x11:3, 0x12:3, 0x13:3 
 }
 
@@ -19,7 +19,9 @@ romMode = {
 
 ramPageSize = 0x2000
 ramMode = {
-    0x0: 0
+    0x0: 0,
+    0x2: 1,
+    0x3: 4
 }
 
 class Mmu:
@@ -135,9 +137,13 @@ class Mmu:
         
         #set up functions for correct memory controller version
         self.mmuType = self.rawReadCartridge(0x147)
+        print ( f"mmuType: {self.mmuType}")
         self.romType = self.rawReadCartridge(0x148)
         self.ramType = self.rawReadCartridge(0x149)
-        self.externalRam = bytearray([0] * (ramPageSize * ramMode[self.ramType]))
+        if cartMbcMap[self.mmuType] == 2:
+            self.externalRam = bytearray([0] * 512)
+        else:
+            self.externalRam = bytearray([0] * (ramPageSize * ramMode[self.ramType]))
 
         self.MCWriteFuncs = [
            self.writeMemControlerNone,
@@ -151,6 +157,9 @@ class Mmu:
         if self.ramType == 0:
             self.readExternalRam = self.readExternalRamNone
             self.writeExternalRam = self.writeExternalRamNone
+        if cartMbcMap[self.mmuType] == 2:
+            self.readExternalRam = self.readExternalRamMC2
+            self.writeExternalRam = self.writeExternalRamMC2
         else:
             self.readExternalRam = self.readExternalRamBanked
             self.writeExternalRam = self.writeExternalRamBanked
@@ -171,7 +180,7 @@ class Mmu:
     romType = 0
     ramType = 0 
     romBank = 1
-    RamBank = 0
+    ramBank = 0
     ramWriteProtect = 1
 
     #controls
@@ -254,6 +263,13 @@ class Mmu:
                 if value & 0x80 == 0:
                     self.registers[0x44] = 0
                     self.gpu.linePosition = 0
+                    self.gpu.mode = 0
+                    self.registers[0x41] &= 0xfc
+                if value & 0x80:
+                    if self.registers[0x40] & 0x80 == 0:
+                        self.gpu.mode == 2
+                        self.registers[0x41] &= 0xfc
+                        self.registers[0x41] |= 2
             
             elif address == 0x41:
                 value &= 0x78 # mask off read only bits
@@ -270,7 +286,8 @@ class Mmu:
             self.vram[address % 0x2000] = value              #0x8000 - 0x9fff
             return
         if address < 0xc000:
-            return self.writeExternalRam(address % 0x2000, value)   #0xa000 - 0xbfff
+            self.writeExternalRam(address % 0x2000, value)   #0xa000 - 0xbfff
+            return
         if address < 0xfe00:
             self.internalRam[address % 0x2000] = value
             return
@@ -289,28 +306,79 @@ class Mmu:
         return
     
     def readCartBanked(self, address):
-        #TODO
-        return 0xff
+        if address < 0x4000:
+            return self.cartridgeRom[address]
+        else:
+            return self.cartridgeRom[
+                (self.romBank * 0x4000) + (address % 0x4000)]
     
-    def readExternalRamBanked(self, address,  value):
-        #TODO
-        return 
+    def readExternalRamBanked(self, address):
+        address %= 0x2000
+        return self.externalRam[(self.ramBank * 0x2000) + address]
+    
+    def readExternalRamMC2(self, address):
+        address %= 0x200
+        return self.externalRam[address]
+    
+    def writeExternalRamMC2(self, address, value):
+        if self.ramWriteProtect == 0:
+            address %= 0x200
+            self.externalRam[address] = value & 0xf
     
     def writeExternalRamBanked(self, address, value):
-        #TODO
+        if self.ramWriteProtect == 0:
+            address %= 0x2000
+            self.externalRam[(self.ramBank * 0x2000) + address] = value
         return
-    
+
     def writeMemControlerNone(self, address, value):
         return
     
     def writeMemControlerMC1(self, address, value):
-        #TODO
-        return
-    
+        if address < 0x2000:
+            if value == 0x0a:
+                self.ramWriteProtect = 0
+            else:
+                self.ramWriteProtect = 1
+            return
+        elif 0x2000 <= address <= 0x4000:
+            self.romBank = value
+            return
+        elif 0x4000 <= address < 0x6000:
+            if self.mc1Mode:
+                self.ramBank = value
+            else:
+                self.romBank &= 0xf
+                self.romBank |= (value << 4)
+        elif 0x6000 <= address:
+            self.mc1Mode = value
+
     def writeMemControlerMC2(self, address, value):
-        #TODO
+        if address < 0x1000:
+            if value == 0x0a:
+                self.ramWriteProtect = 0
+            else:
+                self.ramWriteProtect = 1
+            return
+        elif 0x2100 <= address <= 0x2200:
+            self.romBank = value
         return
     
     def writeMemControlerMC3(self, address, value):
-        #TODO
+        if address < 0x2000:
+            if value == 0x0a:
+                self.ramWriteProtect = 0
+            else:
+                self.ramWriteProtect = 1
+        elif address < 0x4000:
+            if 1 <= value < 0x80:
+                self.romBank = value
+                return
+        elif address < 0x6000:
+            if 0 <= value < 4:
+                self.ramBank = value
+            #TODO rtc registers
+        else:
+            pass
+            #TODO rtc latching
         return

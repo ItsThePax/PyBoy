@@ -1,3 +1,11 @@
+import pygame
+import numpy as np
+
+bitMasks = bytes([0x80, 0x40, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1])
+valueToColorMapping = bytes([0xff, 0x56, 0x29, 0x0])
+
+setBitMasks = bytes([0x80, 0x40, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1])
+
 opcodeNames = {
     0x00: 'NOP',          0x01: 'LD BC,{0}', 0x02: 'LD (BC),A',   0x03: 'INC BC',    
     0x04: 'INC B',        0x05: 'DEC B',     0x06: 'LD B,{0}',    0x07: 'RCLA',
@@ -79,22 +87,126 @@ def formatOpcodeName(instructions, length, registers):
             offset = toSigned(instructions[1])
             if instructions[0] in [0xe8, 0xf8]:
                  return opcodeNames[instructions[0]].format(
-                        hex(registers[0] + offset)
-                        )
+                        hex(registers[0] + offset))
             return opcodeNames[instructions[0]].format(
-                    hex(registers[1] + offset + 2)
-                    )
+                    hex(registers[1] + offset + 2))
         elif instructions[0] in [0xcb, 0x20]:
             return opcodeNames[instructions[0]]
         elif instructions[0] in [0xe0, 0xe2, 0xf0, 0xf2]:
             return opcodeNames[instructions[0]].format(
-                    hex(0xff00 + instructions[1])
-                    )
+                    hex(0xff00 + instructions[1]))
         else:
              return opcodeNames[instructions[0]].format(
-                    hex(instructions[1])
-                    )
+                    hex(instructions[1]))
     elif length == 3:
          return opcodeNames[instructions[0]].format(
-                hex(instructions[2] << 8 | instructions[1])
-                )
+                hex(instructions[2] << 8 | instructions[1]))
+
+
+
+
+def renderTileViewer(rom, offset, screen, pallet):
+    scalingFactor = 4 # hardcoded dont change
+    mem = []
+    for i in range(1024):
+        mem.append(rom[(i + offset) % len(rom)])
+    frameData = []
+    for i in range(8): #tile y
+        for j in range(8): # line in tile
+            lineData = []
+            for k in range(8): #tile X
+                #print(f"i = {i}, j = {j}, k = {k}")
+                colorByteLowIndex = (i * 128) + (j * 2) + (k * 16)
+                colorByteHighIndex = colorByteLowIndex + 1
+                #print (colorByteLowIndex, colorByteHighIndex)          
+                for l in range(8): #for every color bit pair
+                    temp = 0
+                    if mem[colorByteHighIndex] & bitMasks[l]:
+                        temp += 2
+                    if mem[colorByteLowIndex] & bitMasks[l]:
+                        temp += 1
+                    for m in range(scalingFactor):
+                        lineData.append(valueToColorMapping[pallet[temp]])
+                #print(f"lenLineData: {len(lineData)}")
+            for x in range(scalingFactor):
+                frameData.append(lineData)
+                #print(len(frameData))
+    b = np.array(frameData)
+    surf = pygame.surfarray.make_surface(np.flipud(np.rot90(b)))
+    screen.blit(surf, ((0, 0)))
+    pygame.display.update()
+
+
+def tileViewer(rom, offset):
+    print("U/D Shift by 1024")
+    print("L/R Shift by 128")
+    print("Shift + L/R shift by 1")
+    print("1 2 3 4 Change pallet")
+    shift = 0
+    pallet = [0, 1, 2, 3]
+    clock = pygame.time.Clock()
+    #with open(rom, "rb") as f:
+    #    rom = f.read()
+    screen = pygame.display.set_mode((256, 256), depth=8)
+    renderTileViewer(rom, offset, screen, pallet)
+    print(hex(offset))
+    while True:
+        clock.tick(60)
+        events = pygame.event.get()
+        for event in events:
+            if event.type == 768:
+                if event.key == 113:
+                    return
+                elif event.key == 1073742049:
+                    shift = 1
+                elif event.key == 49:
+                    pallet[0] = (pallet[0] + 1) % 4
+                    print (pallet)
+                    renderTileViewer(rom, offset, screen, pallet)
+                elif event.key == 50:
+                    pallet[1] = (pallet[1] + 1) % 4
+                    print (pallet)
+                    renderTileViewer(rom, offset, screen, pallet)
+                elif event.key == 51:
+                    pallet[2] = (pallet[2] + 1) % 4
+                    print (pallet)
+                    renderTileViewer(rom, offset, screen, pallet)
+                elif event.key == 52:
+                    pallet[3] = (pallet[3] + 1) % 4
+                    print (pallet)
+                    renderTileViewer(rom, offset, screen, pallet)
+                elif event.key == 1073741906:
+                    offset = (offset - 1024) % len(rom)
+                    print (hex(offset))
+                    renderTileViewer(rom, offset, screen, pallet)
+                elif event.key == 1073741905:
+                    offset = (offset + 1024) % len(rom)
+                    print (hex(offset))
+                    renderTileViewer(rom, offset, screen, pallet)
+                elif event.key == 1073741904:
+                    if shift:
+                        offset = (offset - 1) % len(rom)
+                    else:
+                        offset = (offset - 128) % len(rom)
+                    print (hex(offset))
+                    renderTileViewer(rom, offset, screen, pallet)
+                elif event.key == 1073741903:
+                    if shift:
+                        offset = (offset + 1) % len(rom)
+                    else:
+                        offset = (offset + 128) % len(rom)
+                    print (hex(offset))
+                    renderTileViewer(rom, offset, screen, pallet)
+            elif event.type == 256:
+                return
+            elif event.type == 769:
+                if event.key == 1073742049:
+                    shift = 0
+
+                
+
+if __name__ == "__main__":
+    import pyboy
+    tileViewer(pyboy.cartridgeFile, 0)
+
+

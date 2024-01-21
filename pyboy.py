@@ -9,7 +9,7 @@ import pyboy_mmu
 random.seed()
 
 biosFile = "DMG_quickboot.bin"
-cartridgeFile = "Tetris.gb"
+cartridgeFile = "tetris.gb"
 
 class Pyboy:
     def __init__(self, cartridgeFile, biosFile):
